@@ -1,0 +1,226 @@
+<script setup lang="ts">
+import { ref, watch } from 'vue';
+import { User, AlertCircle, FileText, Eye, X } from '@lucide/vue';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Spinner } from '@/components/ui/spinner';
+import { fmtFecha } from '@/lib/fecha';
+
+interface PerfilData {
+    tipo_sangre: string | null;
+    alergias: string | null;
+    padecimientos_cronicos: string | null;
+    numero_seguro_social: string | null;
+    seguro_social_documento_url: string | null;
+    ine_documento_url: string | null;
+    curp_documento_url: string | null;
+    comprobante_domicilio_documento_url: string | null;
+    licencia_conducir_documento_url: string | null;
+    [key: string]: any;
+}
+
+interface ColaboradorData {
+    id: number;
+    nombre: string;
+    apellidos: string;
+    tipo: string;
+    categoria: string | null;
+    nivel: number | null;
+    sueldo_diario: string | null;
+    compensacion_pct: number;
+    extra_dia_adicional: string | null;
+}
+
+interface ApiResponse {
+    colaborador: ColaboradorData;
+    perfil: PerfilData | null;
+}
+
+const TIPOS_SANGRE = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const;
+
+const tipoLabel: Record<string, string> = {
+    'COLABORADOR BASE': 'Base',
+    'FREELANCE': 'Freelance',
+    'CONDUCTOR': 'Conductor',
+    'CONDUCTOR BASE': 'Conductor base',
+};
+
+const tipoClass: Record<string, string> = {
+    'COLABORADOR BASE': 'border-blue-300 text-blue-700 bg-blue-50',
+    'FREELANCE': 'border-purple-300 text-purple-700 bg-purple-50',
+    'CONDUCTOR': 'border-amber-300 text-amber-700 bg-amber-50',
+    'CONDUCTOR BASE': 'border-orange-300 text-orange-700 bg-orange-50',
+};
+
+const props = defineProps<{
+    colaboradorId: number | null;
+}>();
+
+const emit = defineEmits<{ close: [] }>();
+
+const open = ref(false);
+const loading = ref(false);
+const data = ref<ApiResponse | null>(null);
+
+const fetchPerfil = async (id: number) => {
+    loading.value = true;
+    data.value = null;
+    open.value = true;
+    try {
+        const res = await fetch(`/colaboradores/${id}/perfil/datos`);
+        if (!res.ok) throw new Error('Error al cargar perfil');
+        data.value = await res.json();
+    } catch {
+        data.value = null;
+    } finally {
+        loading.value = false;
+    }
+};
+
+watch(() => props.colaboradorId, (id) => {
+    if (id !== null) fetchPerfil(id);
+});
+
+const cerrar = () => {
+    open.value = false;
+    emit('close');
+};
+
+const fmt = (val: string | number) =>
+    `$${parseFloat(String(val)).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+
+const documentoLabel: Record<string, string> = {
+    seguro_social: 'Seguro Social',
+    ine: 'INE',
+    curp: 'CURP',
+    comprobante_domicilio: 'Comprobante de Domicilio',
+    licencia_conducir: 'Licencia de Conducir',
+};
+</script>
+
+<template>
+    <Dialog :open="open" @update:open="(v) => { if (!v) cerrar() }">
+        <DialogContent class="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+                <DialogTitle v-if="data" class="flex items-center gap-2">
+                    <User class="size-5 text-slate-500" />
+                    {{ data.colaborador.apellidos }}, {{ data.colaborador.nombre }}
+                </DialogTitle>
+                <DialogDescription v-if="loading">Cargando perfil…</DialogDescription>
+            </DialogHeader>
+
+            <Spinner v-if="loading" class="py-10" />
+
+            <div v-else-if="data" class="space-y-5">
+                <!-- Info general -->
+                <div class="rounded-lg border bg-slate-50 p-4">
+                    <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Información general</p>
+                    <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-medium text-slate-500">Tipo</span>
+                            <Badge
+                                variant="outline"
+                                :class="tipoClass[data.colaborador.tipo] ?? ''"
+                            >
+                                {{ tipoLabel[data.colaborador.tipo] ?? data.colaborador.tipo }}
+                            </Badge>
+                        </div>
+                        <div v-if="data.colaborador.categoria">
+                            <span class="text-xs font-medium text-slate-500">Categoría</span>
+                            <p class="text-slate-800">{{ data.colaborador.categoria }}</p>
+                        </div>
+                        <div v-if="data.colaborador.nivel !== null && data.colaborador.nivel !== undefined">
+                            <span class="text-xs font-medium text-slate-500">Nivel</span>
+                            <p class="text-slate-800">{{ data.colaborador.nivel }}</p>
+                        </div>
+                        <div v-if="data.colaborador.sueldo_diario">
+                            <span class="text-xs font-medium text-slate-500">Sueldo diario</span>
+                            <p class="text-slate-800">{{ fmt(data.colaborador.sueldo_diario) }}</p>
+                        </div>
+                        <div v-if="data.colaborador.compensacion_pct > 0">
+                            <span class="text-xs font-medium text-slate-500">Compensación</span>
+                            <p class="text-slate-800">{{ data.colaborador.compensacion_pct }}%</p>
+                        </div>
+                        <div v-if="data.colaborador.extra_dia_adicional">
+                            <span class="text-xs font-medium text-slate-500">Extra día adicional</span>
+                            <p class="text-slate-800">{{ fmt(data.colaborador.extra_dia_adicional) }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Datos de perfil -->
+                <div v-if="data.perfil" class="space-y-4">
+                    <div class="rounded-lg border bg-slate-50 p-4">
+                        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Datos de emergencia</p>
+                        <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                            <div>
+                                <span class="text-xs font-medium text-slate-500">Tipo de sangre</span>
+                                <p class="font-medium text-slate-800">{{ data.perfil.tipo_sangre ?? '—' }}</p>
+                            </div>
+                            <div>
+                                <span class="text-xs font-medium text-slate-500">NSS</span>
+                                <p class="text-slate-800">{{ data.perfil.numero_seguro_social ?? '—' }}</p>
+                            </div>
+                            <div v-if="data.perfil.alergias" class="col-span-2 flex items-start gap-2">
+                                <AlertCircle class="mt-0.5 size-4 text-amber-400 flex-shrink-0" />
+                                <div>
+                                    <span class="text-xs font-medium text-slate-500">Alergias</span>
+                                    <p class="text-slate-800">{{ data.perfil.alergias }}</p>
+                                </div>
+                            </div>
+                            <div v-if="data.perfil.padecimientos_cronicos" class="col-span-2 flex items-start gap-2">
+                                <AlertCircle class="mt-0.5 size-4 text-orange-400 flex-shrink-0" />
+                                <div>
+                                    <span class="text-xs font-medium text-slate-500">Padecimientos crónicos</span>
+                                    <p class="text-slate-800">{{ data.perfil.padecimientos_cronicos }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Documentos -->
+                    <div class="rounded-lg border bg-slate-50 p-4">
+                        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Documentos</p>
+                        <div class="space-y-1.5 text-sm">
+                            <div
+                                v-for="(label, campo) in documentoLabel"
+                                :key="campo"
+                                class="flex items-center justify-between rounded px-2 py-1 hover:bg-white"
+                            >
+                                <span class="text-slate-600">{{ label }}</span>
+                                <a
+                                    v-if="data.perfil[`${campo}_documento_url`]"
+                                    :href="data.perfil[`${campo}_documento_url`]"
+                                    target="_blank"
+                                    class="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800"
+                                >
+                                    <Eye class="size-3.5" />
+                                    Ver documento
+                                </a>
+                                <span v-else class="inline-flex items-center gap-1 text-xs text-slate-400">
+                                    <X class="size-3.5" />
+                                    Sin adjuntar
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else class="rounded-lg border border-dashed p-6 text-center text-sm text-slate-500">
+                    Este colaborador no tiene perfil registrado (datos de emergencia y documentos).
+                </div>
+            </div>
+
+            <div v-else class="py-6 text-center text-sm text-red-500">
+                No se pudo cargar la información del perfil.
+            </div>
+        </DialogContent>
+    </Dialog>
+</template>
