@@ -1,0 +1,15 @@
+# Ejemplo de configuración de Cloudflare Tunnel (cloudflared).
+#
+# IMPORTANTE: este archivo NO vive dentro de Docker. cloudflared está instalado
+# en el host y redirige el tráfico público hacia nginx en la IP privada del
+# servidor (http://<IP_PRIVADA>:8080).
+#
+# Copiar a ~/.cloudflared/config.yml y ajustar <TUNNEL_ID>, <IP_PRIVADA> y hostname.
+
+tunnel: <TUNNEL_ID>
+credentials-file: /home/usuario/.cloudflared/<TUNNEL_ID>.json
+
+ingress:
+  - hostname: nomina.tudominio.com
+    service: http://<IP_PRIVADA_DEL_SERVIDOR>:8080
+  - service: http_status:404

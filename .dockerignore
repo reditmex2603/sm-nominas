@@ -1,0 +1,49 @@
+# Git
+.git
+.github
+.gitignore
+.gitattributes
+
+# Dependencias (se instalan dentro de las etapas de build)
+node_modules
+vendor
+
+# Entorno / secretos (nunca deben ir en la imagen)
+.env
+.env.*
+!.env.example
+!.env.example.production
+
+# Artefactos de build locales (se regeneran en la imagen)
+public/build
+public/hot
+public/storage
+public/fonts-manifest.dev.json
+bootstrap/cache/*
+bootstrap/ssr
+
+# Storage de desarrollo
+storage
+
+# Logs y caches
+*.log
+.phpunit.cache
+.phpunit.result.cache
+
+# Herramientas de desarrollo / QA
+tests
+phpunit.xml
+phpstan.neon
+pint.json
+eslint.config.js
+.prettierrc
+.prettierignore
+components.json
+
+# IDE / SO
+.idea
+.vscode
+.zed
+.fleet
+.nova
+.DS_Store
