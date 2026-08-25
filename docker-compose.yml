@@ -18,7 +18,7 @@ x-app: &app
   restart: unless-stopped
   volumes:
     - app-storage:/var/www/html/storage
-    - ./.env:/var/www/.env:ro
+    - ./.env:/var/www/html/.env:ro
   depends_on:
     db:
       condition: service_healthy
