@@ -11,21 +11,17 @@ FROM php:8.4-fpm-bookworm AS builder
 ARG VITE_APP_NAME="Nomina SM"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        ca-certificates unzip \
+        ca-certificates curl gnupg unzip \
         libicu-dev libzip-dev libonig-dev \
         $PHPIZE_DEPS \
     && docker-php-ext-install -j"$(nproc)" \
         pdo_mysql mbstring bcmath intl zip pcntl opcache \
     && printf "no\nno\nno\nno\nno\n" | pecl install redis \
     && docker-php-ext-enable redis \
-    && apt-get remove -y $PHPIZE_DEPS libicu-dev libzip-dev libonig-dev \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && apt-get remove -y $PHPIZE_DEPS libicu-dev libzip-dev libonig-dev curl gnupg \
     && rm -rf /var/lib/apt/lists/* /tmp/pear ~/.pearrc
-
-# Node 22 (binarios copiados de la imagen oficial; glibc, compatible con bookworm)
-COPY --from=node:22-bookworm-slim /usr/local/bin/node /usr/local/bin/node
-COPY --from=node:22-bookworm-slim /usr/local/bin/npm /usr/local/bin/npm
-COPY --from=node:22-bookworm-slim /usr/local/bin/npx /usr/local/bin/npx
-COPY --from=node:22-bookworm-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
