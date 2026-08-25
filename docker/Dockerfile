@@ -111,19 +111,24 @@ ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["php-fpm"]
 
 # ==============================================================================
-# SSR — Node sirviendo bootstrap/ssr/ssr.mjs (bundle JS autocontenido, puerto 13714)
+# SSR — Node sirviendo el bundle de Inertia SSR (bootstrap/ssr/app.js, puerto 13714)
 # ==============================================================================
 FROM node:22-alpine AS ssr
 
 WORKDIR /app
 
+# El build de Vite genera `bootstrap/ssr/app.js` (bundle ESM) + assets/
 COPY --from=builder --chown=node:node /var/www/html/bootstrap/ssr ./bootstrap/ssr
+
+# `app.js` y assets/ son ESM; se marca el directorio como módulo para que
+# node los interprete correctamente en cualquier versión de Node 22.
+RUN printf '{"type":"module"}\n' > bootstrap/ssr/package.json
 
 USER node
 
 EXPOSE 13714
 
-CMD ["node", "bootstrap/ssr/ssr.mjs"]
+CMD ["node", "bootstrap/ssr/app.js"]
 
 # ==============================================================================
 # WEB — Nginx con los assets estáticos de public/ (build de Vite) horneados
