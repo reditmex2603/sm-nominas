@@ -1,12 +1,13 @@
 # Despliegue de producción con Cloudflare Tunnel (cloudflared).
 #
 # Ejecución:
-#   cp .env.example.production .env.production
-#   # editar .env.production con los valores reales
-#   docker compose --env-file .env.production up -d --build
+#   cp .env.example.production .env
+#   # editar .env con los valores reales
+#   docker compose up -d --build
 #
-# El único puerto expuesto al host es 127.0.0.1:8080 (nginx), al que apunta
-# cloudflared. TLS lo termina Cloudflare en el borde; el origen es HTTP local.
+# Docker Compose lee .env automáticamente para interpolar ${...} (no hace falta
+# --env-file). El puerto WEB_PORT enlaza en 0.0.0.0, origen del túnel de Cloudflare.
+# TLS lo termina Cloudflare en el borde; el origen es HTTP local.
 
 x-app: &app
   build:
@@ -17,7 +18,7 @@ x-app: &app
   restart: unless-stopped
   volumes:
     - app-storage:/var/www/html/storage
-    - ./.env.production:/var/www/.env:ro
+    - ./.env:/var/www/.env:ro
   depends_on:
     db:
       condition: service_healthy
@@ -100,7 +101,7 @@ services:
     image: mysql:8.0
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?debe definirse en .env.production}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?debe definirse en .env}
       MYSQL_DATABASE: ${DB_DATABASE}
       MYSQL_USER: ${DB_USERNAME}
       MYSQL_PASSWORD: ${DB_PASSWORD}

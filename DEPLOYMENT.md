@@ -21,7 +21,7 @@ Cloudflare en el borde.
 | Software | Versión mínima | Notas |
 |----------|----------------|-------|
 | Docker Engine | 24+ | Con soporte de BuildKit |
-| Docker Compose | v2.24+ | Necesario para el flag `--env-file` |
+| Docker Compose | v2.24+ | — |
 | Git | 2.x | Para clonar el repositorio |
 | cloudflared | última estable | **Instalado en el host** (no en Docker) |
 
@@ -60,10 +60,10 @@ cd nominas-sm
 ### 2.2 Configurar variables de entorno
 
 ```bash
-cp .env.example.production .env.production
+cp .env.example.production .env
 ```
 
-Editar `.env.production` y rellenar como mínimo:
+Editar `.env` y rellenar como mínimo:
 
 - `APP_KEY`: generar con `php -r "echo 'base64:'.base64_encode(random_bytes(32));"`.
 - `APP_URL`: el dominio público (`https://nomina.tudominio.com`).
@@ -72,12 +72,13 @@ Editar `.env.production` y rellenar como mínimo:
 - `MAIL_*` (SMTP para reset de contraseña y verificación de email).
 - `PASSKEYS_USER_HANDLE_SECRET`: `openssl rand -base64 32`.
 
-> `.env.production` está en `.gitignore`; nunca se sube al repositorio.
+> `.env` está en `.gitignore`; nunca se sube al repositorio. Docker Compose lee
+> este archivo automáticamente para interpolar `${...}`.
 
 ### 2.3 Construir e iniciar los contenedores
 
 ```bash
-docker compose --env-file .env.production up -d --build
+docker compose up -d --build
 ```
 
 Esto levanta: `app` (PHP-FPM), `web` (Nginx), `db` (MySQL 8), `redis`,
@@ -175,14 +176,14 @@ contenedores uno a uno:
 
 ```bash
 git pull origin main
-docker compose --env-file .env.production up -d --build
+docker compose up -d --build
 ```
 
 Docker reconstruye la imagen y **reemplaza los contenedores** sin cortar el
 servicio (salvo un instante de reconexión). Para forzar re-creación explícita:
 
 ```bash
-docker compose --env-file .env.production up -d --build --force-recreate app queue scheduler ssr
+docker compose up -d --build --force-recreate app queue scheduler ssr
 ```
 
 Si una actualización incluye **nuevas migraciones**, el entrypoint del servicio
@@ -317,7 +318,7 @@ docker system prune -a --volumes   # imágenes, contenedores, redes y volúmenes
 |--------|---------|
 | Ver estado | `docker compose ps` |
 | Ver logs | `docker compose logs -f` |
-| Reconstruir | `docker compose --env-file .env.production up -d --build` |
+| Reconstruir | `docker compose up -d --build` |
 | Ejecutar artisan | `docker compose exec app php artisan ...` |
 | Entrar a un contenedor | `docker compose exec app sh` |
 | Backup BD | `docker compose exec db sh -c 'mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"' > backup.sql` |
