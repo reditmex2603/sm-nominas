@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Head, useForm, usePage } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import { CheckCircle2, RefreshCw } from '@lucide/vue';
-import { computed, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 
 type TipoColaborador = 'COLABORADOR BASE' | 'FREELANCE' | 'CONDUCTOR' | 'CONDUCTOR BASE';
 type TipoActividad   = 'Bodega' | 'Evento' | 'Transporte';
@@ -42,7 +43,11 @@ const props = defineProps<{
 // nombre de la categoría, no su id).
 const unidadesDelVehiculo = (nombreVehiculo: string): UnidadRef[] => {
     const vehiculoId = props.vehiculos.find(v => v.nombre === nombreVehiculo)?.id;
-    if (!vehiculoId) return [];
+
+    if (!vehiculoId) {
+return [];
+}
+
     return props.unidades.filter(u => u.transporte_vehiculo_id === vehiculoId);
 };
 
@@ -124,14 +129,22 @@ const submitAttempted = ref(false);
 
 const toggleExtra = (val: string) => {
     const idx = extras.value.indexOf(val);
-    if (idx >= 0) extras.value.splice(idx, 1);
-    else extras.value.push(val);
+
+    if (idx >= 0) {
+extras.value.splice(idx, 1);
+} else {
+extras.value.push(val);
+}
 };
 
 const toggleEtapa = (val: string) => {
     const idx = etapas.value.indexOf(val);
-    if (idx >= 0) etapas.value.splice(idx, 1);
-    else etapas.value.push(val);
+
+    if (idx >= 0) {
+etapas.value.splice(idx, 1);
+} else {
+etapas.value.push(val);
+}
 };
 
 const form = useForm({
@@ -152,27 +165,59 @@ const form = useForm({
     hora_salida: '',
 });
 
-watch(() => form.tipo_actividad, () => { extras.value = []; etapas.value = []; });
-watch(() => form.vehiculo, () => { form.transporte_unidad_id = ''; });
+watch(() => form.tipo_actividad, () => {
+ extras.value = []; etapas.value = []; 
+});
+watch(() => form.vehiculo, () => {
+ form.transporte_unidad_id = ''; 
+});
 
 // ─── Validación client-side ───────────────────────────────────────────────────
 const buildErrors = (): Record<string, string> => {
     const e: Record<string, string> = {};
-    if (!form.fecha) e.fecha = 'La fecha es obligatoria.';
-    if (!form.hora)  e.hora  = 'La hora de entrada es obligatoria.';
 
-    if (form.tipo_actividad === 'Bodega' && !form.actividad)
-        e.actividad = 'Selecciona una actividad.';
-    if (form.tipo_actividad === 'Evento' && !form.evento_raw)
-        e.evento_raw = 'Selecciona un evento.';
+    if (!form.fecha) {
+e.fecha = 'La fecha es obligatoria.';
+}
+
+    if (!form.hora)  {
+e.hora  = 'La hora de entrada es obligatoria.';
+}
+
+    if (form.tipo_actividad === 'Bodega' && !form.actividad) {
+e.actividad = 'Selecciona una actividad.';
+}
+
+    if (form.tipo_actividad === 'Evento' && !form.evento_raw) {
+e.evento_raw = 'Selecciona un evento.';
+}
+
     if (form.tipo_actividad === 'Transporte') {
-        if (!form.vehiculo)  e.vehiculo  = 'El vehículo es obligatorio.';
-        if (!form.origen)    e.origen    = 'El origen es obligatorio.';
-        if (!form.destino)   e.destino   = 'El destino es obligatorio.';
-        if (!form.distancia) e.distancia = 'La distancia / ruta es obligatoria.';
-        if (!form.transporte_unidad_id) e.transporte_unidad_id = 'La unidad es obligatoria.';
+        if (!form.vehiculo)  {
+e.vehiculo  = 'El vehículo es obligatorio.';
+}
+
+        if (!form.origen)    {
+e.origen    = 'El origen es obligatorio.';
+}
+
+        if (!form.destino)   {
+e.destino   = 'El destino es obligatorio.';
+}
+
+        if (!form.distancia) {
+e.distancia = 'La distancia / ruta es obligatoria.';
+}
+
+        if (!form.transporte_unidad_id) {
+e.transporte_unidad_id = 'La unidad es obligatoria.';
+}
     }
-    if (!form.evidencia) e.evidencia = 'La fotografía de evidencia es obligatoria.';
+
+    if (!form.evidencia) {
+e.evidencia = 'La fotografía de evidencia es obligatoria.';
+}
+
     return e;
 };
 
@@ -181,24 +226,29 @@ watch(
     () => [form.fecha, form.hora, form.hora_salida, form.tipo_actividad,
            form.actividad, form.evento_raw, form.vehiculo, form.origen,
            form.destino, form.distancia, form.transporte_unidad_id, form.evidencia],
-    () => { if (submitAttempted.value) clientErrors.value = buildErrors(); },
+    () => {
+ if (submitAttempted.value) {
+clientErrors.value = buildErrors();
+} 
+},
 );
-
-// ─── Flash del servidor ───────────────────────────────────────────────────────
-const page        = usePage();
-const flashSuccess = computed(() => (page.props as any).flash?.success as string | undefined);
 
 // ─── Submit ───────────────────────────────────────────────────────────────────
 const submit = () => {
     submitAttempted.value = true;
     clientErrors.value = buildErrors();
-    if (Object.keys(clientErrors.value).length > 0) return;
+
+    if (Object.keys(clientErrors.value).length > 0) {
+return;
+}
 
     form.extras = extras.value.join(', ');
     form.etapa  = etapas.value.join(', ');
     form.post(`/asistencia/${props.token}`, {
         forceFormData: true,
-        onSuccess: () => { enviado.value = true; },
+        onSuccess: () => {
+ enviado.value = true; 
+},
     });
 };
 
@@ -224,8 +274,39 @@ const tipoLabel: Record<TipoColaborador, string> = {
 };
 
 // ─── Evidencia ───────────────────────────────────────────────────────────────
+const MAX_EVIDENCIA_MB = 5;
 const onEvidencia = (e: Event) => {
-    const file = (e.target as HTMLInputElement).files?.[0] ?? null;
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+
+    if (file) {
+        if (!file.type.startsWith('image/')) {
+            if (submitAttempted.value) {
+clientErrors.value.evidencia = 'La evidencia debe ser una imagen (PNG o JPG).';
+}
+
+            form.evidencia = null;
+            input.value = '';
+
+            return;
+        }
+
+        if (file.size > MAX_EVIDENCIA_MB * 1024 * 1024) {
+            if (submitAttempted.value) {
+clientErrors.value.evidencia = `El archivo excede los ${MAX_EVIDENCIA_MB} MB permitidos.`;
+}
+
+            form.evidencia = null;
+            input.value = '';
+
+            return;
+        }
+    }
+
+    if (submitAttempted.value) {
+clientErrors.value.evidencia = '';
+}
+
     form.evidencia = file;
 };
 </script>
@@ -495,10 +576,11 @@ const onEvidencia = (e: Event) => {
                 <!-- Botón submit -->
                 <Button
                     type="submit"
-                    class="w-full h-12 text-base font-semibold"
+                    class="w-full h-12 gap-2 text-base font-semibold"
                     :disabled="form.processing"
                 >
-                    {{ form.processing ? 'Enviando...' : 'Enviar registro' }}
+                    <Spinner v-if="form.processing" class="size-4" />
+                    {{ form.processing ? 'Enviando…' : 'Enviar registro' }}
                 </Button>
             </form>
 

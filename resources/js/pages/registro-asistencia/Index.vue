@@ -2,6 +2,7 @@
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { CalendarDays, Camera, Lock, Pencil, Plus, RefreshCw, Trash2 } from '@lucide/vue';
 import { ref, computed, nextTick, watch } from 'vue';
+import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -21,6 +22,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 import { useConfirm } from '@/composables/useConfirm';
 
 import { fmtFecha } from '@/lib/fecha';
@@ -226,19 +228,67 @@ const addForm = useForm({
 });
 
 watch(() => addForm.tipo_actividad, () => {
- addExtras.value = []; addEtapas.value = []; 
+    addExtras.value = [];
+    addEtapas.value = [];
 });
 watch(() => addForm.vehiculo, () => {
- addForm.transporte_unidad_id = ''; 
+    addForm.transporte_unidad_id = '';
+});
+
+const addIntentado = ref(false);
+
+const erroresAdd = computed<Record<string, string>>(() => {
+    const e: Record<string, string> = {};
+
+    if (!addForm.colaborador_id) {
+        e.colaborador_id = 'Selecciona un colaborador.';
+    }
+
+    if (!addForm.fecha) {
+        e.fecha = 'La fecha es obligatoria.';
+    }
+
+    if (!addForm.hora) {
+        e.hora = 'La hora de entrada es obligatoria.';
+    }
+
+    if (addForm.tipo_actividad === 'Transporte' && !addForm.transporte_unidad_id) {
+        e.transporte_unidad_id = 'Selecciona la unidad de transporte.';
+    }
+
+    return e;
+});
+
+const msgAdd = (campo: string): string => {
+    const cliente = erroresAdd.value[campo];
+
+    if (addIntentado.value && cliente) {
+        return cliente;
+    }
+
+    return (addForm.errors as Record<string, string>)[campo] ?? '';
+};
+
+watch(() => showAdd, (open) => {
+    if (open) {
+        addIntentado.value = false;
+    }
 });
 
 const submitAdd = () => {
     addForm.extras = addExtras.value.join(', ');
     addForm.etapa  = addEtapas.value.join(', ');
+    addIntentado.value = true;
+
+    if (Object.keys(erroresAdd.value).length > 0) {
+        return;
+    }
+
     addForm.post(registroAsistencia.store.url(), {
         forceFormData: true,
         onSuccess: () => {
             showAdd.value = false;
+            addIntentado.value = false;
             addForm.reset();
             addForm.fecha = today;
             addForm.hora = nowTime;
@@ -248,9 +298,31 @@ const submitAdd = () => {
     });
 };
 
+const MAX_EVIDENCIA_MB = 5;
+const evidenciaError = ref('');
+
 const onEvidenciaChange = (e: Event) => {
     const input = e.target as HTMLInputElement;
-    addForm.evidencia = input.files?.[0] ?? null;
+    const file = input.files?.[0] ?? null;
+
+    if (file) {
+        if (!file.type.startsWith('image/')) {
+            evidenciaError.value = 'La evidencia debe ser una imagen (PNG o JPG).';
+            input.value = '';
+
+            return;
+        }
+
+        if (file.size > MAX_EVIDENCIA_MB * 1024 * 1024) {
+            evidenciaError.value = `El archivo excede los ${MAX_EVIDENCIA_MB} MB permitidos.`;
+            input.value = '';
+
+            return;
+        }
+    }
+
+    evidenciaError.value = '';
+    addForm.evidencia = file;
 };
 
 // ---------- EDITAR registro ----------
@@ -329,15 +401,24 @@ return;
 
 // ---------- ELIMINAR ----------
 const { confirm } = useConfirm();
+const eliminandoId = ref<number | null>(null);
 
 const eliminar = async (r: Registro) => {
     const ok = await confirm(`¿Eliminar el registro de ${r.colaborador.nombre} ${r.colaborador.apellidos} del ${r.fecha}?`, {
         title: 'Eliminar registro',
     });
 
-    if (ok) {
-router.delete(registroAsistencia.destroy.url(r.id), { preserveScroll: true });
+    if (!ok) {
+return;
 }
+
+    eliminandoId.value = r.id;
+    router.delete(registroAsistencia.destroy.url(r.id), {
+        preserveScroll: true,
+        onFinish: () => {
+ eliminandoId.value = null; 
+},
+    });
 };
 
 // ---------- REGENERAR JORNADAS ----------
@@ -452,22 +533,22 @@ return props.eventos;
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <p v-if="addForm.errors.colaborador_id" class="text-destructive text-xs">{{ addForm.errors.colaborador_id }}</p>
+                                <InputError :message="msgAdd('colaborador_id')" />
                             </div>
 
                             <!-- Fecha -->
                             <div class="space-y-1">
                                 <Label>Fecha <span class="text-destructive">*</span></Label>
                                 <Input v-model="addForm.fecha" type="date" required />
-                                <p v-if="addForm.errors.fecha" class="text-destructive text-xs">{{ addForm.errors.fecha }}</p>
+                                <InputError :message="msgAdd('fecha')" />
                             </div>
 
                             <!-- Hora entrada / salida -->
-                            <div class="grid grid-cols-2 gap-3">
+                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 <div class="space-y-1">
                                     <Label>Hora de entrada <span class="text-destructive">*</span></Label>
                                     <Input v-model="addForm.hora" type="time" required />
-                                    <p v-if="addForm.errors.hora" class="text-destructive text-xs">{{ addForm.errors.hora }}</p>
+                                    <InputError :message="msgAdd('hora')" />
                                 </div>
                                 <div class="space-y-1">
                                     <Label>Hora de salida</Label>
@@ -616,7 +697,7 @@ return props.eventos;
                                         <p v-if="addForm.vehiculo && unidadesDelVehiculo(addForm.vehiculo).length === 0" class="text-muted-foreground text-xs">
                                             Sin unidades registradas de este tipo en Transportes.
                                         </p>
-                                        <p v-if="addForm.errors.transporte_unidad_id" class="text-destructive text-xs">{{ addForm.errors.transporte_unidad_id }}</p>
+                                        <InputError :message="msgAdd('transporte_unidad_id')" />
                                     </div>
                                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                         <div class="space-y-1">
@@ -645,7 +726,7 @@ return props.eventos;
                                         </div>
                                         <div class="min-w-0">
                                             <p class="text-sm font-medium">Subir foto</p>
-                                            <p class="text-muted-foreground text-xs">PNG, JPG hasta 10 MB. Puedes tomar una foto directamente con la cámara.</p>
+                                            <p class="text-muted-foreground text-xs">PNG, JPG hasta 5 MB. Puedes tomar una foto directamente con la cámara.</p>
                                         </div>
                                     </div>
                                     <input
@@ -656,7 +737,10 @@ return props.eventos;
                                         @change="onEvidenciaChange"
                                     />
                                 </div>
-                                <p v-if="addForm.errors.evidencia" class="text-destructive text-xs">{{ addForm.errors.evidencia }}</p>
+                                <p v-if="evidenciaError" class="text-destructive flex items-center gap-1 text-xs" role="alert">
+                                    {{ evidenciaError }}
+                                </p>
+                                <InputError :message="addForm.errors.evidencia" />
                             </div>
 
                             <!-- Comentarios -->
@@ -667,7 +751,10 @@ return props.eventos;
 
                             <DialogFooter>
                                 <Button type="button" variant="outline" @click="showAdd = false">Cancelar</Button>
-                                <Button type="submit" :disabled="addForm.processing">Guardar</Button>
+                                <Button type="submit" :disabled="addForm.processing" class="gap-1.5">
+                                    <Spinner v-if="addForm.processing" class="size-4" />
+                                    {{ addForm.processing ? 'Guardando…' : 'Guardar' }}
+                                </Button>
                             </DialogFooter>
                         </form>
                     </DialogContent>
@@ -698,8 +785,8 @@ return props.eventos;
             </p>
         </div>
 
-        <!-- Tabla -->
-        <div class="overflow-x-auto rounded-xl border">
+        <!-- Tabla escritorio (≥ lg) -->
+        <div class="hidden overflow-x-auto rounded-xl border lg:block">
             <table class="w-full text-sm">
                 <thead class="bg-muted/50 border-b">
                     <tr>
@@ -781,15 +868,90 @@ return props.eventos;
                                     size="sm"
                                     variant="ghost"
                                     class="text-destructive"
+                                    :disabled="eliminandoId === r.id"
                                     @click="eliminar(r)"
                                 >
-                                    <Trash2 class="size-3.5" />
+                                    <Spinner v-if="eliminandoId === r.id" class="size-3.5" />
+                                    <Trash2 v-else class="size-3.5" />
                                 </Button>
                             </div>
                         </td>
                     </tr>
                 </tbody>
             </table>
+        </div>
+
+        <!-- Cards móvil (< lg) -->
+        <div class="flex flex-col gap-3 lg:hidden">
+            <div v-if="registrosFiltrados.length === 0" class="text-muted-foreground rounded-xl border border-dashed py-10 text-center text-sm">
+                Sin registros. Usa "+ Nuevo registro" para capturar asistencia.
+            </div>
+
+            <div v-for="r in registrosFiltrados" :key="r.id" class="rounded-xl border p-4">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                        <p class="truncate font-medium">{{ r.colaborador.apellidos }}, {{ r.colaborador.nombre }}</p>
+                        <p class="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
+                            <CalendarDays class="size-3.5" />
+                            {{ fmtFecha(r.fecha) }}
+                            <span class="tabular-nums">
+                                {{ r.hora.slice(0, 5) }}
+                                <template v-if="r.hora_salida"> → {{ r.hora_salida.slice(0, 5) }}</template>
+                            </span>
+                        </p>
+                    </div>
+                    <div class="flex flex-shrink-0 items-center gap-2">
+                        <a
+                            v-if="r.evidencia_url"
+                            :href="r.evidencia_url"
+                            target="_blank"
+                            rel="noopener"
+                        >
+                            <img
+                                :src="r.evidencia_url"
+                                alt="Evidencia"
+                                class="size-10 rounded object-cover ring-1 ring-border hover:ring-primary transition-all"
+                            />
+                        </a>
+                        <span
+                            class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium"
+                            :class="tipoBadgeClass[r.tipo_actividad]"
+                        >
+                            {{ r.tipo_actividad }}
+                        </span>
+                    </div>
+                </div>
+
+                <p class="mt-2 text-sm">{{ actividadLabel(r) }}</p>
+                <p v-if="r.extras" class="text-muted-foreground mt-0.5 text-xs">{{ r.extras }}</p>
+
+                <div class="mt-3 flex justify-end gap-1">
+                    <Button size="sm" variant="outline" @click="abrirEdicion(r)">
+                        <Pencil class="size-3.5" />
+                    </Button>
+                    <Button
+                        v-if="r.jornada_validada || r.en_nomina"
+                        size="sm"
+                        variant="ghost"
+                        class="text-muted-foreground cursor-not-allowed"
+                        :title="r.jornada_validada ? 'No se puede eliminar: la jornada ya fue validada' : 'No se puede eliminar: la jornada ya forma parte de una nómina guardada'"
+                        disabled
+                    >
+                        <Lock class="size-3.5" />
+                    </Button>
+                    <Button
+                        v-else
+                        size="sm"
+                        variant="ghost"
+                        class="text-destructive"
+                        :disabled="eliminandoId === r.id"
+                        @click="eliminar(r)"
+                    >
+                        <Spinner v-if="eliminandoId === r.id" class="size-3.5" />
+                        <Trash2 v-else class="size-3.5" />
+                    </Button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -975,7 +1137,10 @@ return props.eventos;
 
                 <DialogFooter>
                     <Button type="button" variant="outline" @click="editando = null">Cancelar</Button>
-                    <Button type="submit" :disabled="editForm.processing">Guardar corrección</Button>
+                    <Button type="submit" :disabled="editForm.processing" class="gap-1.5">
+                        <Spinner v-if="editForm.processing" class="size-4" />
+                        {{ editForm.processing ? 'Guardando…' : 'Guardar corrección' }}
+                    </Button>
                 </DialogFooter>
             </form>
         </DialogContent>

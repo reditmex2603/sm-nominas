@@ -118,6 +118,8 @@ class RegistroAsistenciaController extends Controller
 
         RegistroNormalizado::create($validated);
 
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Registro de asistencia creado.']);
+
         return back();
     }
 
@@ -141,6 +143,8 @@ class RegistroAsistenciaController extends Controller
         ]);
 
         $registro->update($validated);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Registro de asistencia actualizado.']);
 
         return back();
     }
@@ -185,6 +189,8 @@ class RegistroAsistenciaController extends Controller
         if (! $quedan) {
             $jornada?->delete();
         }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Registro de asistencia eliminado.']);
 
         return back();
     }

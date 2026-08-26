@@ -75,6 +75,8 @@ class AsistenciaPublicaController extends Controller
 
         RegistroNormalizado::create($validated);
 
-        return back()->with('success', 'Registro enviado correctamente.');
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Registro enviado correctamente.']);
+
+        return back();
     }
 }
