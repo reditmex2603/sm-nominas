@@ -20,12 +20,17 @@ const esLegacy = (v: number | FraccionEventoLegacy): v is FraccionEventoLegacy =
 /** 100 = completo → sin Select en TRASLAPE; cualquier otro valor cae en modo TRASLAPE. */
 export const fraccionEventoModo = (v: number | FraccionEventoLegacy | null): FraccionEventoModo => {
     const pct = v === null ? 100 : (esLegacy(v) ? LEGACY_PCT[v] : v);
+
     return pct === 100 ? 'COMPLETO' : 'TRASLAPE';
 };
 
 /** Acepta el porcentaje nuevo (número) o el enum viejo congelado en desgloses históricos. */
 export const fraccionEventoLabel = (v: number | FraccionEventoLegacy | null): string | null => {
-    if (v === null) return null;
+    if (v === null) {
+return null;
+}
+
     const pct = esLegacy(v) ? LEGACY_PCT[v] : v;
+
     return pct === 100 ? null : `Traslape ${pct}%`;
 };

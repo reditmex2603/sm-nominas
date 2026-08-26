@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useConfirm } from '@/composables/useConfirm';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -9,6 +8,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { useConfirm } from '@/composables/useConfirm';
 
 const { confirmState, accept, dismiss } = useConfirm();
 </script>

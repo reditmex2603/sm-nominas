@@ -21,6 +21,7 @@ export const tipoPagoBadgeClass = (v: TipoPago): string => {
         'SIN_PAGO':                  'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
         'ERROR_EVENTO':              'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
     };
+
     return mapa[v] ?? '';
 };
 
@@ -29,5 +30,6 @@ export const tipoPagoLabel = (v: TipoPago, traslapePct?: number | null): string 
     if (v === 'TRASLAPE') {
         return traslapePct != null ? `Traslape ${traslapePct}%` : 'Traslape';
     }
+
     return tipoPagoOpciones.find(o => o.value === v)?.label ?? v;
 };

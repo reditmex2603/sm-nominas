@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { User, AlertCircle, Eye, X } from '@lucide/vue';
 import { ref, watch } from 'vue';
-import { User, AlertCircle, FileText, Eye, X } from '@lucide/vue';
+import { Badge } from '@/components/ui/badge';
 import {
     Dialog,
     DialogContent,
@@ -8,10 +9,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
-import { fmtFecha } from '@/lib/fecha';
 
 interface PerfilData {
     tipo_sangre: string | null;
@@ -43,8 +41,6 @@ interface ApiResponse {
     perfil: PerfilData | null;
 }
 
-const TIPOS_SANGRE = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const;
-
 const tipoLabel: Record<string, string> = {
     'COLABORADOR BASE': 'Base',
     'FREELANCE': 'Freelance',
@@ -73,9 +69,14 @@ const fetchPerfil = async (id: number) => {
     loading.value = true;
     data.value = null;
     open.value = true;
+
     try {
         const res = await fetch(`/colaboradores/${id}/perfil/datos`);
-        if (!res.ok) throw new Error('Error al cargar perfil');
+
+        if (!res.ok) {
+throw new Error('Error al cargar perfil');
+}
+
         data.value = await res.json();
     } catch {
         data.value = null;
@@ -85,7 +86,9 @@ const fetchPerfil = async (id: number) => {
 };
 
 watch(() => props.colaboradorId, (id) => {
-    if (id !== null) fetchPerfil(id);
+    if (id !== null) {
+fetchPerfil(id);
+}
 });
 
 const cerrar = () => {

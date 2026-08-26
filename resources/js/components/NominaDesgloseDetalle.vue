@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { fmtFecha } from '@/lib/fecha';
-import { tipoPagoBadgeClass, tipoPagoLabel, type TipoPago } from '@/lib/tipoPago';
 import { fraccionEventoLabel } from '@/lib/fraccionEvento';
+import { tipoPagoBadgeClass, tipoPagoLabel  } from '@/lib/tipoPago';
+import type {TipoPago} from '@/lib/tipoPago';
 
 interface Desglose {
     _jornadas?: {
