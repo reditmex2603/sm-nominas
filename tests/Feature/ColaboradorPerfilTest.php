@@ -5,7 +5,7 @@ use App\Models\ColaboradorPerfil;
 use App\Models\User;
 
 test('página de perfil de colaborador se muestra', function () {
-    $admin = User::factory()->create();
+    $admin = User::factory()->admin()->create();
     $colaborador = Colaborador::create([
         'nombre' => 'Juan',
         'apellidos' => 'Pérez',
@@ -18,7 +18,7 @@ test('página de perfil de colaborador se muestra', function () {
 });
 
 test('el perfil exige fecha de ingreso, teléfono y whatsapp', function () {
-    $admin = User::factory()->create();
+    $admin = User::factory()->admin()->create();
     $colaborador = Colaborador::create([
         'nombre' => 'Juan',
         'apellidos' => 'Pérez',
@@ -35,7 +35,7 @@ test('el perfil exige fecha de ingreso, teléfono y whatsapp', function () {
 });
 
 test('el perfil se guarda con los campos nuevos', function () {
-    $admin = User::factory()->create();
+    $admin = User::factory()->admin()->create();
     $colaborador = Colaborador::create([
         'nombre' => 'Juan',
         'apellidos' => 'Pérez',

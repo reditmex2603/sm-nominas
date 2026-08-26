@@ -57,4 +57,27 @@ class UserFactory extends Factory
             'two_factor_confirmed_at' => now(),
         ]);
     }
+
+    /**
+     * Super admin: acceso a todos los módulos (ver User::tienePermiso).
+     */
+    public function admin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'rol' => 'admin',
+        ]);
+    }
+
+    /**
+     * Usuario capturista con permisos explícitos por módulo.
+     *
+     * @param  array<int, string>  $permisos
+     */
+    public function conPermisos(array $permisos): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'rol' => 'capturista',
+            'permisos' => $permisos,
+        ]);
+    }
 }
