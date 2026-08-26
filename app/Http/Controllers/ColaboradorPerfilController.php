@@ -162,7 +162,7 @@ class ColaboradorPerfilController extends Controller
 
         $perfil->save();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Perfil actualizado.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Perfil guardado correctamente.']);
 
         return back();
     }

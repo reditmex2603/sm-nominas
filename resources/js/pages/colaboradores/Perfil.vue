@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { ArrowLeft, Eye, FileText, Printer, Trash2, Upload, User } from '@lucide/vue';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import DocumentosImprimirPanel from '@/components/DocumentosImprimirPanel.vue';
+import FileInput from '@/components/FileInput.vue';
+import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +15,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 import { useConfirm } from '@/composables/useConfirm';
 import * as perfilRoutes from '@/routes/colaboradores/perfil';
 import * as perfilDocumento from '@/routes/colaboradores/perfil/documento';
@@ -77,6 +80,8 @@ const tipoBadge: Record<TipoColaborador, { label: string; class: string }> = {
 
 const TIPOS_SANGRE = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const;
 const GENEROS = ['Masculino', 'Femenino'] as const;
+const MAX_MB = 5;
+const DOCUMENTO_MIMES = ['image/jpeg', 'image/png', 'application/pdf'];
 
 const form = useForm({
     alias: props.perfil?.alias ?? '',
@@ -111,9 +116,31 @@ const form = useForm({
 });
 
 const fotoPreviewUrl = ref<string | null>(props.perfil?.fotografia_url ?? null);
+const fotoError = ref('');
 
 const elegirFotografia = (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0] ?? null;
+
+    if (file) {
+        const esImagenValida = file.type.startsWith('image/') && ['image/jpeg', 'image/png'].includes(file.type);
+        const cabe = file.size <= MAX_MB * 1024 * 1024;
+
+        if (!esImagenValida) {
+            fotoError.value = 'Formato no permitido. Usa JPG o PNG.';
+            (e.target as HTMLInputElement).value = '';
+
+            return;
+        }
+
+        if (!cabe) {
+            fotoError.value = `El archivo excede los ${MAX_MB} MB permitidos.`;
+            (e.target as HTMLInputElement).value = '';
+
+            return;
+        }
+    }
+
+    fotoError.value = '';
 
     if (fotoPreviewUrl.value) {
         URL.revokeObjectURL(fotoPreviewUrl.value);
@@ -123,13 +150,80 @@ const elegirFotografia = (e: Event) => {
     fotoPreviewUrl.value = file ? URL.createObjectURL(file) : (props.perfil?.fotografia_url ?? null);
 };
 
-type CampoArchivo = 'seguro_social_documento' | 'ine_documento' | 'curp_documento' | 'comprobante_domicilio_documento' | 'licencia_conducir_documento';
+// ── Validación cliente (en vivo tras el primer intento) ────────────
+const intentado = ref(false);
+const hoy = new Date().toISOString().split('T')[0];
 
-const elegirArchivo = (campo: CampoArchivo, e: Event) => {
-    form[campo] = (e.target as HTMLInputElement).files?.[0] ?? null;
+const digitos = (v?: string): string => (v ?? '').replace(/\D/g, '');
+const telefonoValido = (v: string): boolean => {
+    const d = digitos(v);
+
+    return d.length >= 10 && d.length <= 13;
+};
+
+const erroresPerfil = computed<Record<string, string>>(() => {
+    const e: Record<string, string> = {};
+
+    if (!form.fecha_ingreso) {
+        e.fecha_ingreso = 'La fecha de ingreso es obligatoria.';
+    }
+
+    if (!digitos(form.telefono)) {
+        e.telefono = 'El número de teléfono es obligatorio.';
+    } else if (!telefonoValido(form.telefono)) {
+        e.telefono = 'Teléfono inválido (10 a 13 dígitos).';
+    }
+
+    if (!digitos(form.whatsapp)) {
+        e.whatsapp = 'El número de WhatsApp es obligatorio.';
+    } else if (!telefonoValido(form.whatsapp)) {
+        e.whatsapp = 'WhatsApp inválido (10 a 13 dígitos).';
+    }
+
+    if (form.correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.correo)) {
+        e.correo = 'Correo electrónico inválido.';
+    }
+
+    if (form.fecha_nacimiento && form.fecha_nacimiento >= hoy) {
+        e.fecha_nacimiento = 'La fecha de nacimiento debe ser anterior a hoy.';
+    }
+
+    if (form.clave_interbancaria && digitos(form.clave_interbancaria).length !== 18) {
+        e.clave_interbancaria = 'La CLABE debe tener 18 dígitos.';
+    }
+
+    if (form.numero_seguro_social && /\D/.test(form.numero_seguro_social)) {
+        e.numero_seguro_social = 'El NSS solo debe contener números.';
+    }
+
+    for (const p of ['1', '2'] as const) {
+        const tel = form[`contacto_emergencia_${p}_telefono`];
+
+        if (tel && !telefonoValido(tel)) {
+            e[`contacto_emergencia_${p}_telefono`] = 'Teléfono inválido (10 a 13 dígitos).';
+        }
+    }
+
+    return e;
+});
+
+const msg = (campo: string): string => {
+    const cliente = erroresPerfil.value[campo];
+
+    if (intentado.value && cliente) {
+        return cliente;
+    }
+
+    return (form.errors as Record<string, string>)[campo] ?? '';
 };
 
 const guardar = () => {
+    intentado.value = true;
+
+    if (Object.keys(erroresPerfil.value).length > 0) {
+        return;
+    }
+
     form.post(perfilRoutes.update.url({ colaborador: props.colaborador.id }), {
         preserveScroll: true,
         onSuccess: () => {
@@ -173,8 +267,8 @@ const mostrarDocumentos = ref(false);
     <Head :title="`Perfil — ${colaborador.nombre} ${colaborador.apellidos}`" />
 
     <div class="flex h-full flex-1 flex-col gap-6 p-4 sm:p-6">
-        <div class="flex items-start gap-3 sm:items-center">
-            <Button variant="ghost" size="sm" as-child>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Button variant="ghost" size="sm" as-child class="self-start sm:self-auto">
                 <Link href="/colaboradores">
                     <ArrowLeft class="size-4" />
                 </Link>
@@ -183,20 +277,22 @@ const mostrarDocumentos = ref(false);
                 <h1 class="text-2xl font-semibold">{{ colaborador.apellidos }}, {{ colaborador.nombre }}</h1>
                 <p class="text-muted-foreground mt-0.5 text-sm">Perfil de colaborador</p>
             </div>
-            <Button variant="outline" size="sm" class="ml-auto gap-1.5" @click="abrirImprimir">
-                <Printer class="size-3.5" />
-                Imprimir
-            </Button>
-            <Button variant="outline" size="sm" class="gap-1.5" @click="mostrarDocumentos = true">
-                <FileText class="size-3.5" />
-                Imprimir documentos
-            </Button>
+            <div class="flex gap-2 sm:ml-auto">
+                <Button variant="outline" size="sm" class="gap-1.5" @click="abrirImprimir">
+                    <Printer class="size-3.5" />
+                    Imprimir
+                </Button>
+                <Button variant="outline" size="sm" class="gap-1.5" @click="mostrarDocumentos = true">
+                    <FileText class="size-3.5" />
+                    Imprimir documentos
+                </Button>
+            </div>
         </div>
 
         <!-- Información ya establecida (solo lectura — se edita desde Colaboradores) -->
         <fieldset class="rounded-xl border p-4">
             <legend class="px-1 text-sm font-medium">Información general</legend>
-            <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm md:grid-cols-4">
+            <dl class="grid grid-cols-1 gap-y-3 text-sm sm:grid-cols-2 md:grid-cols-4 md:gap-x-6">
                 <div>
                     <dt class="text-muted-foreground text-xs">Tipo</dt>
                     <dd class="mt-0.5">
@@ -231,34 +327,37 @@ const mostrarDocumentos = ref(false);
             <fieldset class="space-y-4 rounded-xl border p-4">
                 <legend class="px-1 text-sm font-medium">Datos personales</legend>
 
-                <div class="flex flex-wrap items-center gap-4">
+                <div class="flex flex-col items-center gap-4 sm:flex-row sm:flex-wrap sm:items-start">
                     <div class="flex flex-col items-center gap-1.5">
                         <div class="flex size-24 items-center justify-center overflow-hidden rounded-full border bg-muted">
                             <img v-if="fotoPreviewUrl" :src="fotoPreviewUrl" alt="Fotografía" class="size-full object-cover" />
                             <User v-else class="size-10 text-muted-foreground" />
                         </div>
                         <Label class="cursor-pointer text-xs font-normal underline">
-                            <input type="file" accept="image/*" class="hidden" @change="elegirFotografia" />
+                            <input type="file" accept=".jpg,.jpeg,.png" class="sr-only" @change="elegirFotografia" />
                             {{ form.fotografia || props.perfil?.fotografia_url ? 'Cambiar foto' : 'Subir foto' }}
                         </Label>
-                        <p v-if="form.errors.fotografia" class="text-destructive text-xs">{{ form.errors.fotografia }}</p>
+                        <p v-if="fotoError" class="text-destructive flex items-center gap-1 text-xs" role="alert">
+                            {{ fotoError }}
+                        </p>
+                        <InputError :message="form.errors.fotografia" />
                     </div>
 
-                    <div class="grid flex-1 grid-cols-2 gap-4 md:grid-cols-4">
+                    <div class="grid w-full flex-1 grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
                         <div class="space-y-1">
                             <Label>Alias</Label>
-                            <Input v-model="form.alias" placeholder="Ej. Charly" />
-                            <p v-if="form.errors.alias" class="text-destructive text-xs">{{ form.errors.alias }}</p>
+                            <Input v-model="form.alias" placeholder="Ej. Charly" maxlength="255" />
+                            <InputError :message="msg('alias')" />
                         </div>
                         <div class="space-y-1">
                             <Label>Fecha de ingreso <span class="text-destructive">*</span></Label>
-                            <Input v-model="form.fecha_ingreso" type="date" required />
-                            <p v-if="form.errors.fecha_ingreso" class="text-destructive text-xs">{{ form.errors.fecha_ingreso }}</p>
+                            <Input v-model="form.fecha_ingreso" type="date" :max="hoy" required />
+                            <InputError :message="msg('fecha_ingreso')" />
                         </div>
                         <div class="space-y-1">
                             <Label>Fecha de nacimiento</Label>
-                            <Input v-model="form.fecha_nacimiento" type="date" />
-                            <p v-if="form.errors.fecha_nacimiento" class="text-destructive text-xs">{{ form.errors.fecha_nacimiento }}</p>
+                            <Input v-model="form.fecha_nacimiento" type="date" :max="hoy" />
+                            <InputError :message="msg('fecha_nacimiento')" />
                         </div>
                         <div class="space-y-1">
                             <Label>Género</Label>
@@ -268,39 +367,39 @@ const mostrarDocumentos = ref(false);
                                     <SelectItem v-for="g in GENEROS" :key="g" :value="g">{{ g }}</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <p v-if="form.errors.genero" class="text-destructive text-xs">{{ form.errors.genero }}</p>
+                            <InputError :message="msg('genero')" />
                         </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4 md:grid-cols-3">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
                     <div class="space-y-1">
                         <Label>Correo</Label>
-                        <Input v-model="form.correo" type="email" placeholder="correo@ejemplo.com" />
-                        <p v-if="form.errors.correo" class="text-destructive text-xs">{{ form.errors.correo }}</p>
+                        <Input v-model="form.correo" type="email" placeholder="correo@ejemplo.com" maxlength="255" />
+                        <InputError :message="msg('correo')" />
                     </div>
                     <div class="space-y-1">
                         <Label>Número de teléfono <span class="text-destructive">*</span></Label>
-                        <Input v-model="form.telefono" type="tel" required />
-                        <p v-if="form.errors.telefono" class="text-destructive text-xs">{{ form.errors.telefono }}</p>
+                        <Input v-model="form.telefono" type="tel" inputmode="tel" maxlength="13" placeholder="10 dígitos" required />
+                        <InputError :message="msg('telefono')" />
                     </div>
                     <div class="space-y-1">
                         <Label>WhatsApp <span class="text-destructive">*</span></Label>
-                        <Input v-model="form.whatsapp" type="tel" required />
-                        <p v-if="form.errors.whatsapp" class="text-destructive text-xs">{{ form.errors.whatsapp }}</p>
+                        <Input v-model="form.whatsapp" type="tel" inputmode="tel" maxlength="13" placeholder="10 dígitos" required />
+                        <InputError :message="msg('whatsapp')" />
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4 md:grid-cols-3">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
                     <div class="space-y-1">
                         <Label>Enlace de redes sociales</Label>
                         <Input v-model="form.redes_sociales" type="url" placeholder="https://instagram.com/usuario" />
-                        <p v-if="form.errors.redes_sociales" class="text-destructive text-xs">{{ form.errors.redes_sociales }}</p>
+                        <InputError :message="msg('redes_sociales')" />
                     </div>
                     <div class="space-y-1">
                         <Label>Ubicación en Maps</Label>
                         <Input v-model="form.ubicacion_maps" type="url" placeholder="https://maps.app.goo.gl/..." />
-                        <p v-if="form.errors.ubicacion_maps" class="text-destructive text-xs">{{ form.errors.ubicacion_maps }}</p>
+                        <InputError :message="msg('ubicacion_maps')" />
                     </div>
                 </div>
 
@@ -309,10 +408,11 @@ const mostrarDocumentos = ref(false);
                     <textarea
                         v-model="form.domicilio"
                         rows="2"
+                        maxlength="2000"
                         placeholder="Calle, número, colonia, ciudad..."
                         class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 w-full resize-none rounded-md border bg-transparent px-3 py-1.5 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:ring-[3px]"
                     />
-                    <p v-if="form.errors.domicilio" class="text-destructive text-xs">{{ form.errors.domicilio }}</p>
+                    <InputError :message="msg('domicilio')" />
                 </div>
             </fieldset>
 
@@ -320,7 +420,7 @@ const mostrarDocumentos = ref(false);
             <fieldset class="space-y-4 rounded-xl border p-4">
                 <legend class="px-1 text-sm font-medium">Datos de emergencia</legend>
 
-                <div class="grid grid-cols-2 gap-4 md:grid-cols-3">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
                     <div class="space-y-1">
                         <Label>Tipo de sangre</Label>
                         <Select v-model="form.tipo_sangre">
@@ -330,9 +430,10 @@ const mostrarDocumentos = ref(false);
                             </SelectContent>
                         </Select>
                     </div>
-                    <div class="col-span-2 space-y-1">
+                    <div class="space-y-1 sm:col-span-2">
                         <Label>Número de seguro social</Label>
-                        <Input v-model="form.numero_seguro_social" placeholder="NSS" />
+                        <Input v-model="form.numero_seguro_social" inputmode="numeric" maxlength="11" placeholder="NSS" />
+                        <InputError :message="msg('numero_seguro_social')" />
                     </div>
                 </div>
 
@@ -342,6 +443,7 @@ const mostrarDocumentos = ref(false);
                         <textarea
                             v-model="form.alergias"
                             rows="3"
+                            maxlength="2000"
                             placeholder="Ninguna conocida"
                             class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 w-full resize-none rounded-md border bg-transparent px-3 py-1.5 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:ring-[3px]"
                         />
@@ -351,16 +453,23 @@ const mostrarDocumentos = ref(false);
                         <textarea
                             v-model="form.padecimientos_cronicos"
                             rows="3"
+                            maxlength="2000"
                             placeholder="Ninguno conocido"
                             class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 w-full resize-none rounded-md border bg-transparent px-3 py-1.5 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:ring-[3px]"
                         />
                     </div>
                 </div>
 
-                <div class="space-y-1">
+                <div class="space-y-1.5">
                     <Label>Documento de seguro social</Label>
                     <div class="flex flex-wrap items-center gap-2">
-                        <Input type="file" accept="image/*,.pdf" class="max-w-xs" @change="(e: Event) => elegirArchivo('seguro_social_documento', e)" />
+                        <FileInput
+                            v-model="form.seguro_social_documento"
+                            accept=".jpg,.jpeg,.png,.pdf"
+                            :mimes="DOCUMENTO_MIMES"
+                            :max-mb="MAX_MB"
+                            :error="form.errors.seguro_social_documento"
+                        />
                         <a v-if="perfil?.seguro_social_documento_url" :href="perfil.seguro_social_documento_url" target="_blank" rel="noopener">
                             <Button type="button" size="sm" variant="outline"><Eye class="size-3.5" />Ver</Button>
                         </a>
@@ -372,7 +481,6 @@ const mostrarDocumentos = ref(false);
                             <Trash2 class="size-3.5" />
                         </Button>
                     </div>
-                    <p v-if="form.errors.seguro_social_documento" class="text-destructive text-xs">{{ form.errors.seguro_social_documento }}</p>
                 </div>
             </fieldset>
 
@@ -385,18 +493,18 @@ const mostrarDocumentos = ref(false);
                     <div class="mt-1 grid grid-cols-1 gap-4 md:grid-cols-3">
                         <div class="space-y-1">
                             <Label>Nombre</Label>
-                            <Input v-model="form.contacto_emergencia_1_nombre" placeholder="Nombre completo" />
-                            <p v-if="form.errors.contacto_emergencia_1_nombre" class="text-destructive text-xs">{{ form.errors.contacto_emergencia_1_nombre }}</p>
+                            <Input v-model="form.contacto_emergencia_1_nombre" placeholder="Nombre completo" maxlength="255" />
+                            <InputError :message="msg('contacto_emergencia_1_nombre')" />
                         </div>
                         <div class="space-y-1">
                             <Label>Parentesco</Label>
-                            <Input v-model="form.contacto_emergencia_1_parentesco" placeholder="Ej. Esposa, Hermano, Amigo" />
-                            <p v-if="form.errors.contacto_emergencia_1_parentesco" class="text-destructive text-xs">{{ form.errors.contacto_emergencia_1_parentesco }}</p>
+                            <Input v-model="form.contacto_emergencia_1_parentesco" placeholder="Ej. Esposa, Hermano, Amigo" maxlength="255" />
+                            <InputError :message="msg('contacto_emergencia_1_parentesco')" />
                         </div>
                         <div class="space-y-1">
                             <Label>Número de teléfono</Label>
-                            <Input v-model="form.contacto_emergencia_1_telefono" type="tel" placeholder="10 dígitos" />
-                            <p v-if="form.errors.contacto_emergencia_1_telefono" class="text-destructive text-xs">{{ form.errors.contacto_emergencia_1_telefono }}</p>
+                            <Input v-model="form.contacto_emergencia_1_telefono" type="tel" inputmode="tel" maxlength="13" placeholder="10 dígitos" />
+                            <InputError :message="msg('contacto_emergencia_1_telefono')" />
                         </div>
                     </div>
                 </div>
@@ -406,18 +514,18 @@ const mostrarDocumentos = ref(false);
                     <div class="mt-1 grid grid-cols-1 gap-4 md:grid-cols-3">
                         <div class="space-y-1">
                             <Label>Nombre</Label>
-                            <Input v-model="form.contacto_emergencia_2_nombre" placeholder="Nombre completo" />
-                            <p v-if="form.errors.contacto_emergencia_2_nombre" class="text-destructive text-xs">{{ form.errors.contacto_emergencia_2_nombre }}</p>
+                            <Input v-model="form.contacto_emergencia_2_nombre" placeholder="Nombre completo" maxlength="255" />
+                            <InputError :message="msg('contacto_emergencia_2_nombre')" />
                         </div>
                         <div class="space-y-1">
                             <Label>Parentesco</Label>
-                            <Input v-model="form.contacto_emergencia_2_parentesco" placeholder="Ej. Esposa, Hermano, Amigo" />
-                            <p v-if="form.errors.contacto_emergencia_2_parentesco" class="text-destructive text-xs">{{ form.errors.contacto_emergencia_2_parentesco }}</p>
+                            <Input v-model="form.contacto_emergencia_2_parentesco" placeholder="Ej. Esposa, Hermano, Amigo" maxlength="255" />
+                            <InputError :message="msg('contacto_emergencia_2_parentesco')" />
                         </div>
                         <div class="space-y-1">
                             <Label>Número de teléfono</Label>
-                            <Input v-model="form.contacto_emergencia_2_telefono" type="tel" placeholder="10 dígitos" />
-                            <p v-if="form.errors.contacto_emergencia_2_telefono" class="text-destructive text-xs">{{ form.errors.contacto_emergencia_2_telefono }}</p>
+                            <Input v-model="form.contacto_emergencia_2_telefono" type="tel" inputmode="tel" maxlength="13" placeholder="10 dígitos" />
+                            <InputError :message="msg('contacto_emergencia_2_telefono')" />
                         </div>
                     </div>
                 </div>
@@ -427,10 +535,16 @@ const mostrarDocumentos = ref(false);
             <fieldset class="space-y-4 rounded-xl border p-4">
                 <legend class="px-1 text-sm font-medium">Documentos de identificación</legend>
 
-                <div class="space-y-1">
+                <div class="space-y-1.5">
                     <Label>INE</Label>
                     <div class="flex flex-wrap items-center gap-2">
-                        <Input type="file" accept="image/*,.pdf" class="max-w-xs" @change="(e: Event) => elegirArchivo('ine_documento', e)" />
+                        <FileInput
+                            v-model="form.ine_documento"
+                            accept=".jpg,.jpeg,.png,.pdf"
+                            :mimes="DOCUMENTO_MIMES"
+                            :max-mb="MAX_MB"
+                            :error="form.errors.ine_documento"
+                        />
                         <a v-if="perfil?.ine_documento_url" :href="perfil.ine_documento_url" target="_blank" rel="noopener">
                             <Button type="button" size="sm" variant="outline"><Eye class="size-3.5" />Ver</Button>
                         </a>
@@ -442,13 +556,18 @@ const mostrarDocumentos = ref(false);
                             <Trash2 class="size-3.5" />
                         </Button>
                     </div>
-                    <p v-if="form.errors.ine_documento" class="text-destructive text-xs">{{ form.errors.ine_documento }}</p>
                 </div>
 
-                <div class="space-y-1">
+                <div class="space-y-1.5">
                     <Label>CURP</Label>
                     <div class="flex flex-wrap items-center gap-2">
-                        <Input type="file" accept="image/*,.pdf" class="max-w-xs" @change="(e: Event) => elegirArchivo('curp_documento', e)" />
+                        <FileInput
+                            v-model="form.curp_documento"
+                            accept=".jpg,.jpeg,.png,.pdf"
+                            :mimes="DOCUMENTO_MIMES"
+                            :max-mb="MAX_MB"
+                            :error="form.errors.curp_documento"
+                        />
                         <a v-if="perfil?.curp_documento_url" :href="perfil.curp_documento_url" target="_blank" rel="noopener">
                             <Button type="button" size="sm" variant="outline"><Eye class="size-3.5" />Ver</Button>
                         </a>
@@ -460,13 +579,18 @@ const mostrarDocumentos = ref(false);
                             <Trash2 class="size-3.5" />
                         </Button>
                     </div>
-                    <p v-if="form.errors.curp_documento" class="text-destructive text-xs">{{ form.errors.curp_documento }}</p>
                 </div>
 
-                <div class="space-y-1">
+                <div class="space-y-1.5">
                     <Label>Comprobante de domicilio</Label>
                     <div class="flex flex-wrap items-center gap-2">
-                        <Input type="file" accept="image/*,.pdf" class="max-w-xs" @change="(e: Event) => elegirArchivo('comprobante_domicilio_documento', e)" />
+                        <FileInput
+                            v-model="form.comprobante_domicilio_documento"
+                            accept=".jpg,.jpeg,.png,.pdf"
+                            :mimes="DOCUMENTO_MIMES"
+                            :max-mb="MAX_MB"
+                            :error="form.errors.comprobante_domicilio_documento"
+                        />
                         <a v-if="perfil?.comprobante_domicilio_documento_url" :href="perfil.comprobante_domicilio_documento_url" target="_blank" rel="noopener">
                             <Button type="button" size="sm" variant="outline"><Eye class="size-3.5" />Ver</Button>
                         </a>
@@ -478,13 +602,18 @@ const mostrarDocumentos = ref(false);
                             <Trash2 class="size-3.5" />
                         </Button>
                     </div>
-                    <p v-if="form.errors.comprobante_domicilio_documento" class="text-destructive text-xs">{{ form.errors.comprobante_domicilio_documento }}</p>
                 </div>
 
-                <div class="space-y-1">
+                <div class="space-y-1.5">
                     <Label>Licencia de conducir</Label>
                     <div class="flex flex-wrap items-center gap-2">
-                        <Input type="file" accept="image/*,.pdf" class="max-w-xs" @change="(e: Event) => elegirArchivo('licencia_conducir_documento', e)" />
+                        <FileInput
+                            v-model="form.licencia_conducir_documento"
+                            accept=".jpg,.jpeg,.png,.pdf"
+                            :mimes="DOCUMENTO_MIMES"
+                            :max-mb="MAX_MB"
+                            :error="form.errors.licencia_conducir_documento"
+                        />
                         <a v-if="perfil?.licencia_conducir_documento_url" :href="perfil.licencia_conducir_documento_url" target="_blank" rel="noopener">
                             <Button type="button" size="sm" variant="outline"><Eye class="size-3.5" />Ver</Button>
                         </a>
@@ -496,7 +625,6 @@ const mostrarDocumentos = ref(false);
                             <Trash2 class="size-3.5" />
                         </Button>
                     </div>
-                    <p v-if="form.errors.licencia_conducir_documento" class="text-destructive text-xs">{{ form.errors.licencia_conducir_documento }}</p>
                 </div>
             </fieldset>
 
@@ -504,29 +632,30 @@ const mostrarDocumentos = ref(false);
             <fieldset class="space-y-4 rounded-xl border p-4">
                 <legend class="px-1 text-sm font-medium">Datos bancarios</legend>
 
-                <div class="grid grid-cols-2 gap-4 md:grid-cols-3">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
                     <div class="space-y-1">
                         <Label>Banco</Label>
-                        <Input v-model="form.banco" placeholder="Ej. BBVA" />
-                        <p v-if="form.errors.banco" class="text-destructive text-xs">{{ form.errors.banco }}</p>
+                        <Input v-model="form.banco" placeholder="Ej. BBVA" maxlength="255" />
+                        <InputError :message="msg('banco')" />
                     </div>
                     <div class="space-y-1">
                         <Label>Beneficiario</Label>
-                        <Input v-model="form.beneficiario" placeholder="Nombre del titular" />
-                        <p v-if="form.errors.beneficiario" class="text-destructive text-xs">{{ form.errors.beneficiario }}</p>
+                        <Input v-model="form.beneficiario" placeholder="Nombre del titular" maxlength="255" />
+                        <InputError :message="msg('beneficiario')" />
                     </div>
                     <div class="space-y-1">
                         <Label>Clave interbancaria (CLABE)</Label>
-                        <Input v-model="form.clave_interbancaria" maxlength="18" placeholder="18 dígitos" />
-                        <p v-if="form.errors.clave_interbancaria" class="text-destructive text-xs">{{ form.errors.clave_interbancaria }}</p>
+                        <Input v-model="form.clave_interbancaria" inputmode="numeric" maxlength="18" placeholder="18 dígitos" />
+                        <InputError :message="msg('clave_interbancaria')" />
                     </div>
                 </div>
             </fieldset>
 
             <div>
-                <Button type="submit" :disabled="form.processing">
-                    <Upload class="size-4" />
-                    Guardar perfil
+                <Button type="submit" :disabled="form.processing" class="gap-1.5">
+                    <Spinner v-if="form.processing" class="size-4" />
+                    <Upload v-else class="size-4" />
+                    {{ form.processing ? 'Guardando…' : 'Guardar perfil' }}
                 </Button>
             </div>
         </form>

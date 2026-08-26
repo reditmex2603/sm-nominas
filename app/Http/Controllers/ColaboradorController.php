@@ -70,6 +70,8 @@ class ColaboradorController extends Controller
 
         Colaborador::create($validated);
 
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Colaborador creado correctamente.']);
+
         return back();
     }
 
@@ -108,7 +110,9 @@ class ColaboradorController extends Controller
     {
         $colaborador->forceFill(['token' => (string) Str::uuid()])->save();
 
-        return back()->with('success', 'Enlace regenerado. El enlace anterior ya no es válido.');
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Enlace de asistencia regenerado.']);
+
+        return back();
     }
 
     public function destroy(Colaborador $colaborador): RedirectResponse
@@ -148,6 +152,8 @@ class ColaboradorController extends Controller
         }
 
         $colaborador->delete();
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Colaborador eliminado.']);
 
         return back();
     }
