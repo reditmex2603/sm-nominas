@@ -1595,7 +1595,7 @@ const setCompensacion = (j: Jornada, activa: boolean) => {
                         </div>
                         <span class="text-muted-foreground text-sm">Corte semanal: lunes a sábado (puede abarcar varias semanas)</span>
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div class="space-y-1">
                             <Label class="text-sm">Período inicio</Label>
                             <Input v-model="calcParams.inicio" type="date" />

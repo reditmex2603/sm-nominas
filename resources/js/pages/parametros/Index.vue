@@ -150,34 +150,72 @@ const msg = (campo: string): string => {
             <fieldset class="space-y-4 rounded-xl border p-4">
                 <legend class="text-sm font-medium px-1">Extra por día de evento (Base), según categoría, nivel y tamaño del evento</legend>
 
-                <div class="grid grid-cols-[1fr_auto_auto] items-center gap-x-4 gap-y-2">
-                    <span></span>
-                    <Label class="text-muted-foreground text-center text-xs">Mediano</Label>
-                    <Label class="text-muted-foreground text-center text-xs">Grande</Label>
+                <!-- Vista escritorio (≥ sm): tabla compacta -->
+                <div class="hidden overflow-x-auto sm:block">
+                    <div class="grid grid-cols-[1fr_auto_auto] items-center gap-x-4 gap-y-2">
+                        <span></span>
+                        <Label class="text-muted-foreground text-center text-xs">Mediano</Label>
+                        <Label class="text-muted-foreground text-center text-xs">Grande</Label>
 
-                    <template v-for="row in categoriasEventoRows" :key="row.label">
-                        <Label class="whitespace-nowrap">{{ row.label }}</Label>
-                        <div class="space-y-1">
-                            <Input
-                                v-model="form[row.mediano]"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                class="w-28"
-                            />
-                            <InputError :message="msg(row.mediano)" />
+                        <template v-for="row in categoriasEventoRows" :key="row.label">
+                            <Label class="whitespace-nowrap">{{ row.label }}</Label>
+                            <div class="space-y-1">
+                                <Input
+                                    v-model="form[row.mediano]"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    class="w-28"
+                                />
+                                <InputError :message="msg(row.mediano)" />
+                            </div>
+                            <div class="space-y-1">
+                                <Input
+                                    v-model="form[row.grande]"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    class="w-28"
+                                />
+                                <InputError :message="msg(row.grande)" />
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Vista móvil (< sm): tarjetas por categoría apiladas -->
+                <div class="space-y-3 sm:hidden">
+                    <div
+                        v-for="row in categoriasEventoRows"
+                        :key="row.label"
+                        class="rounded-lg border bg-muted/30 p-3"
+                    >
+                        <Label class="text-sm font-medium">{{ row.label }}</Label>
+                        <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div class="space-y-1">
+                                <Label class="text-muted-foreground text-xs">Mediano</Label>
+                                <Input
+                                    v-model="form[row.mediano]"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    class="w-full"
+                                />
+                                <InputError :message="msg(row.mediano)" />
+                            </div>
+                            <div class="space-y-1">
+                                <Label class="text-muted-foreground text-xs">Grande</Label>
+                                <Input
+                                    v-model="form[row.grande]"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    class="w-full"
+                                />
+                                <InputError :message="msg(row.grande)" />
+                            </div>
                         </div>
-                        <div class="space-y-1">
-                            <Input
-                                v-model="form[row.grande]"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                class="w-28"
-                            />
-                            <InputError :message="msg(row.grande)" />
-                        </div>
-                    </template>
+                    </div>
                 </div>
                 <p class="text-muted-foreground text-xs">
                     Se suma una vez por cada día calificado de evento (montaje/show/desmontaje) en el período, ponderado por el % de etapas trabajadas; en traslape también se prorratea por el % que capture el admin. Los eventos Chico nunca generan este extra.

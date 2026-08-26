@@ -125,7 +125,7 @@ const documentoLabel: Record<string, string> = {
                 <!-- Info general -->
                 <div class="rounded-lg border bg-slate-50 p-4">
                     <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Información general</p>
-                    <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                    <div class="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
                         <div class="flex items-center gap-2">
                             <span class="text-xs font-medium text-slate-500">Tipo</span>
                             <Badge
@@ -162,7 +162,7 @@ const documentoLabel: Record<string, string> = {
                 <div v-if="data.perfil" class="space-y-4">
                     <div class="rounded-lg border bg-slate-50 p-4">
                         <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Datos de emergencia</p>
-                        <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                        <div class="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
                             <div>
                                 <span class="text-xs font-medium text-slate-500">Tipo de sangre</span>
                                 <p class="font-medium text-slate-800">{{ data.perfil.tipo_sangre ?? '—' }}</p>

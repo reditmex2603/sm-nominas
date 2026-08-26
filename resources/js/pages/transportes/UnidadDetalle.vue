@@ -236,7 +236,7 @@ const eliminarDocumento = async (campo: string, label: string) => {
             <fieldset class="space-y-4 rounded-xl border p-4">
                 <legend class="px-1 text-sm font-medium">Identificación</legend>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div class="space-y-1">
                         <Label>Alias</Label>
                         <Input v-model="form.alias" placeholder="Ej. Unidad 01" />
@@ -252,7 +252,7 @@ const eliminarDocumento = async (campo: string, label: string) => {
             <fieldset class="space-y-4 rounded-xl border p-4">
                 <legend class="px-1 text-sm font-medium">Póliza de seguro</legend>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div class="space-y-1">
                         <Label>Número de póliza</Label>
                         <Input v-model="form.numero_poliza_seguro" placeholder="Número de póliza" />

@@ -359,7 +359,7 @@ clientErrors.value.evidencia = '';
                     <p v-if="clientErrors.fecha || form.errors.fecha" class="text-destructive text-xs">{{ clientErrors.fecha || form.errors.fecha }}</p>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div class="space-y-1">
                         <Label class="text-sm font-medium">Hora de entrada <span class="text-destructive">*</span></Label>
                         <Input v-model="form.hora" type="time" class="text-base h-11" :class="(clientErrors.hora || form.errors.hora) ? 'border-destructive' : ''" />
@@ -498,7 +498,7 @@ clientErrors.value.evidencia = '';
                         </Select>
                         <p v-if="clientErrors.vehiculo || form.errors.vehiculo" class="text-destructive text-xs">{{ clientErrors.vehiculo || form.errors.vehiculo }}</p>
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div class="space-y-1">
                             <Label class="text-sm font-medium">Origen <span class="text-destructive">*</span></Label>
                             <Input v-model="form.origen" class="h-11 text-base" :class="(clientErrors.origen || form.errors.origen) ? 'border-destructive' : ''" />

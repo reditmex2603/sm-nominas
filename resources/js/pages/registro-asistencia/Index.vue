@@ -987,7 +987,7 @@ return props.eventos;
                 </div>
 
                 <!-- Hora entrada / salida -->
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div class="space-y-1">
                         <Label>Hora de entrada</Label>
                         <Input v-model="editForm.hora" type="time" required />
