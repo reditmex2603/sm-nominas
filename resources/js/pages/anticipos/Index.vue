@@ -2,6 +2,7 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import { Plus } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
+import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -20,6 +21,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 import { fmtFecha } from '@/lib/fecha';
 import * as anticiposRoutes from '@/routes/anticipos';
 
@@ -139,14 +141,58 @@ watch(() => form.colaborador_id, () => {
     }
 });
 
+// ── Validación cliente (en vivo tras el primer intento) ────────────
+const intentado = ref(false);
+
+const erroresForm = computed<Record<string, string>>(() => {
+    const e: Record<string, string> = {};
+
+    if (!form.colaborador_id) {
+        e.colaborador_id = 'Selecciona un colaborador.';
+    }
+
+    if (!Number(form.monto) || Number(form.monto) < 0.01) {
+        e.monto = 'El monto debe ser mayor a 0.';
+    }
+
+    if (esDeEvento.value && !form.evento_id) {
+        e.evento_id = 'Selecciona el evento asignado.';
+    }
+
+    return e;
+});
+
+const msg = (campo: string): string => {
+    const cliente = erroresForm.value[campo];
+
+    if (intentado.value && cliente) {
+        return cliente;
+    }
+
+    return (form.errors as Record<string, string>)[campo] ?? '';
+};
+
+watch(() => showForm, (open) => {
+    if (open) {
+        intentado.value = false;
+    }
+});
+
 const submit = () => {
     if (!esDeEvento.value) {
         form.evento_id = '';
     }
 
+    intentado.value = true;
+
+    if (Object.keys(erroresForm.value).length > 0) {
+        return;
+    }
+
     form.post(anticiposRoutes.store.url(), {
         onSuccess: () => {
             showForm.value = false;
+            intentado.value = false;
             form.reset();
             form.fecha = today;
             form.tipo = 'SUELTO';
@@ -175,7 +221,7 @@ const submit = () => {
                         Nuevo anticipo
                     </Button>
                 </DialogTrigger>
-                <DialogContent class="max-w-md">
+                <DialogContent class="w-full max-w-md sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>Registrar anticipo</DialogTitle>
                     </DialogHeader>
@@ -199,14 +245,14 @@ const submit = () => {
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
-                            <p v-if="form.errors.colaborador_id" class="text-destructive text-xs">{{ form.errors.colaborador_id }}</p>
+                            <InputError :message="msg('colaborador_id')" />
                         </div>
 
                         <!-- Monto -->
                         <div class="space-y-1">
                             <Label>Monto <span class="text-destructive">*</span></Label>
-                            <Input v-model="form.monto" type="number" step="0.01" min="0.01" required />
-                            <p v-if="form.errors.monto" class="text-destructive text-xs">{{ form.errors.monto }}</p>
+                            <Input v-model="form.monto" type="number" step="0.01" min="0.01" inputmode="decimal" required />
+                            <InputError :message="msg('monto')" />
                         </div>
 
                         <!-- Origen -->
@@ -252,13 +298,13 @@ const submit = () => {
                             >
                                 El colaborador no tiene eventos asignados; solo podrá marcarse como suelto.
                             </p>
-                            <p v-if="form.errors.evento_id" class="text-destructive text-xs">{{ form.errors.evento_id }}</p>
+                            <InputError :message="msg('evento_id')" />
                         </div>
 
                         <!-- Concepto -->
                         <div class="space-y-1">
                             <Label>Concepto</Label>
-                            <Input v-model="form.concepto" placeholder="Ej. Festival de Verano 2024" />
+                            <Input v-model="form.concepto" placeholder="Ej. Festival de Verano 2024" maxlength="500" />
                             <p v-if="esDeEvento" class="text-muted-foreground text-xs">Si se deja vacío, se usará el nombre del evento para el descuento automático.</p>
                             <p v-else class="text-muted-foreground text-xs">Para freelance: debe coincidir con el nombre del evento para descuento automático.</p>
                         </div>
@@ -273,12 +319,15 @@ const submit = () => {
                         <!-- Entregado por -->
                         <div class="space-y-1">
                             <Label>¿Quién entrega?</Label>
-                            <Input v-model="form.entregado_por" placeholder="Nombre del responsable" />
+                            <Input v-model="form.entregado_por" placeholder="Nombre del responsable" maxlength="255" />
                         </div>
 
                         <DialogFooter>
                             <Button type="button" variant="outline" @click="showForm = false">Cancelar</Button>
-                            <Button type="submit" :disabled="form.processing">Registrar</Button>
+                            <Button type="submit" :disabled="form.processing" class="gap-1.5">
+                                <Spinner v-if="form.processing" class="size-4" />
+                                {{ form.processing ? 'Registrando…' : 'Registrar' }}
+                            </Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>
@@ -322,8 +371,8 @@ const submit = () => {
             </p>
         </div>
 
-        <!-- Tabla (solo lectura) -->
-        <div class="overflow-x-auto rounded-xl border">
+        <!-- Tabla (solo lectura) — escritorio -->
+        <div class="hidden overflow-x-auto rounded-xl border lg:block">
             <table class="w-full text-sm">
                 <thead class="bg-muted/50 border-b">
                     <tr>
@@ -342,7 +391,7 @@ const submit = () => {
                             Sin anticipos registrados.
                         </td>
                     </tr>
-                    <tr v-for="a in anticiposFiltrados" :key="a.id" class="hover:bg-muted/30">
+                    <tr v-for="a in anticiposFiltrados" :key="a.id" class="transition-colors hover:bg-muted/50">
                         <td class="px-4 py-3 whitespace-nowrap tabular-nums">{{ fmtFecha(a.fecha) }}</td>
                         <td class="px-4 py-3 whitespace-nowrap font-medium">
                             {{ a.colaborador.apellidos }}, {{ a.colaborador.nombre }}
@@ -375,6 +424,53 @@ const submit = () => {
                     </tr>
                 </tbody>
             </table>
+        </div>
+
+        <!-- Cards móvil (< lg) -->
+        <div class="flex flex-col gap-3 lg:hidden">
+            <div v-if="anticiposFiltrados.length === 0" class="text-muted-foreground rounded-xl border border-dashed py-10 text-center text-sm">
+                Sin anticipos registrados.
+            </div>
+
+            <div v-for="a in anticiposFiltrados" :key="a.id" class="rounded-xl border p-4">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                        <p class="truncate font-medium">{{ a.colaborador.apellidos }}, {{ a.colaborador.nombre }}</p>
+                        <p class="text-muted-foreground mt-0.5 text-xs tabular-nums">{{ fmtFecha(a.fecha) }}</p>
+                    </div>
+                    <div class="flex flex-shrink-0 flex-col items-end gap-1">
+                        <span
+                            class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium"
+                            :class="tipoBadgeClass[a.colaborador.tipo]"
+                        >
+                            {{ tipoLabel[a.colaborador.tipo] }}
+                        </span>
+                        <span
+                            class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium"
+                            :class="a.tipo === 'EVENTO' ? 'bg-violet-100 text-violet-800' : 'bg-slate-100 text-slate-700'"
+                        >
+                            {{ a.tipo === 'EVENTO' ? (a.evento?.nombre ?? 'Evento') : 'Suelto' }}
+                        </span>
+                    </div>
+                </div>
+
+                <dl class="mt-3 space-y-1.5 text-sm">
+                    <div class="flex items-start justify-between gap-3">
+                        <dt class="text-muted-foreground text-xs">Concepto</dt>
+                        <dd class="text-right">{{ a.concepto ?? '—' }}</dd>
+                    </div>
+                    <div class="flex items-start justify-between gap-3">
+                        <dt class="text-muted-foreground text-xs">Entregado por</dt>
+                        <dd class="text-right">{{ a.entregado_por ?? '—' }}</dd>
+                    </div>
+                    <div class="flex items-center justify-between border-t pt-2">
+                        <dt class="text-muted-foreground text-xs">Monto</dt>
+                        <dd class="font-medium tabular-nums">
+                            ${{ parseFloat(a.monto).toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}
+                        </dd>
+                    </div>
+                </dl>
+            </div>
         </div>
     </div>
 </template>

@@ -53,6 +53,8 @@ class AnticipController extends Controller
 
         Anticipo::create($validated);
 
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Anticipo registrado correctamente.']);
+
         return back();
     }
 }
