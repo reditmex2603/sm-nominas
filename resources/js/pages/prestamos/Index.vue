@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { CalendarClock, ChevronDown, ChevronRight, HandCoins, Plus, Trash2 } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -21,6 +22,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 import { useConfirm } from '@/composables/useConfirm';
 import { fmtFecha } from '@/lib/fecha';
 import * as prestamosApi from '@/routes/prestamos';
@@ -118,22 +120,71 @@ const form = useForm({
     autoriza:       '',
 });
 
+const formIntentado = ref(false);
+
+const erroresForm = computed<Record<string, string>>(() => {
+    const e: Record<string, string> = {};
+
+    if (!form.colaborador_id) {
+        e.colaborador_id = 'Selecciona un colaborador.';
+    }
+
+    if (!Number(form.monto_total) || Number(form.monto_total) < 0.01) {
+        e.monto_total = 'El monto debe ser mayor a 0.';
+    }
+
+    const plazos = parseInt(form.num_plazos, 10);
+
+    if (!plazos || plazos < 1 || plazos > 52) {
+        e.num_plazos = 'Indica entre 1 y 52 plazos.';
+    }
+
+    if (!form.fecha_inicio) {
+        e.fecha_inicio = 'La fecha de inicio es obligatoria.';
+    }
+
+    return e;
+});
+
+const msg = (campo: string): string => {
+    const cliente = erroresForm.value[campo];
+
+    if (formIntentado.value && cliente) {
+        return cliente;
+    }
+
+    return (form.errors as Record<string, string>)[campo] ?? '';
+};
+
+watch(() => showForm, (open) => {
+    if (open) {
+        formIntentado.value = false;
+    }
+});
+
 // Vista previa del monto por cuota (informativa, el backend recalcula igual)
 const montoPorCuotaPreview = computed(() => {
     const total = parseFloat(form.monto_total);
     const plazos = parseInt(form.num_plazos, 10);
 
     if (!total || !plazos) {
-return null;
-}
+        return null;
+    }
 
     return total / plazos;
 });
 
 const submit = () => {
+    formIntentado.value = true;
+
+    if (Object.keys(erroresForm.value).length > 0) {
+        return;
+    }
+
     form.post(prestamosApi.store.url(), {
         onSuccess: () => {
             showForm.value = false;
+            formIntentado.value = false;
             form.reset();
             form.fecha_inicio = today;
             form.num_plazos = '4';
@@ -144,15 +195,24 @@ const submit = () => {
 
 // ── Eliminar (solo si ninguna cuota está pagada — el backend también lo valida) ──
 const { confirm } = useConfirm();
+const eliminando = ref<number | null>(null);
 
 const eliminar = async (p: Prestamo) => {
     const ok = await confirm(`¿Eliminar el préstamo de ${p.colaborador.nombre} ${p.colaborador.apellidos} por ${fmtMoney(p.monto_total)}? Esta acción no se puede deshacer.`, {
         title: 'Eliminar préstamo',
     });
 
-    if (ok) {
-router.delete(prestamosApi.destroy.url(p.id), { preserveScroll: true });
+    if (!ok) {
+return;
 }
+
+    eliminando.value = p.id;
+    router.delete(prestamosApi.destroy.url(p.id), {
+        preserveScroll: true,
+        onFinish: () => {
+ eliminando.value = null; 
+},
+    });
 };
 
 // ── Pago manual de un plazo (independiente del descuento automático en nómina) ──
@@ -188,17 +248,25 @@ const abrirAplazar = (cuotaIds: number[]) => {
     aplazarAbierto.value = true;
 };
 
+const aplazando = ref(false);
+
 const confirmarAplazar = () => {
+    aplazando.value = true;
     router.post(prestamoCuotas.aplazar.url(), {
         cuota_ids: aplazarIds.value,
         nueva_fecha: nuevaFechaPlazo.value,
     }, {
         preserveScroll: true,
         onSuccess: () => {
- aplazarAbierto.value = false; 
+            aplazarAbierto.value = false;
+        },
+        onFinish: () => {
+ aplazando.value = false; 
 },
     });
 };
+
+const distribuyendo = ref<number | null>(null);
 
 const distribuirCarga = async (p: Prestamo) => {
     const cuotas = selDePrestamo(p);
@@ -212,11 +280,15 @@ const distribuirCarga = async (p: Prestamo) => {
     );
 
     if (!ok) {
-return;
-}
+        return;
+    }
 
+    distribuyendo.value = p.id;
     router.post(prestamoCuotas.distribuir.url(), { cuota_ids: cuotas.map(c => c.id) }, {
         preserveScroll: true,
+        onFinish: () => {
+ distribuyendo.value = null; 
+},
     });
 };
 
@@ -305,20 +377,20 @@ return;
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
-                            <p v-if="form.errors.colaborador_id" class="text-destructive text-xs">{{ form.errors.colaborador_id }}</p>
+                            <InputError :message="msg('colaborador_id')" />
                         </div>
 
                         <div class="space-y-1">
                             <Label>Monto total <span class="text-destructive">*</span></Label>
-                            <Input v-model="form.monto_total" type="number" step="0.01" min="0.01" required />
-                            <p v-if="form.errors.monto_total" class="text-destructive text-xs">{{ form.errors.monto_total }}</p>
+                            <Input v-model="form.monto_total" type="number" step="0.01" min="0.01" inputmode="decimal" required />
+                            <InputError :message="msg('monto_total')" />
                         </div>
 
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div class="space-y-1">
                                 <Label>Número de plazos <span class="text-destructive">*</span></Label>
-                                <Input v-model="form.num_plazos" type="number" step="1" min="1" max="52" required />
-                                <p v-if="form.errors.num_plazos" class="text-destructive text-xs">{{ form.errors.num_plazos }}</p>
+                                <Input v-model="form.num_plazos" type="number" step="1" min="1" max="52" inputmode="numeric" required />
+                                <InputError :message="msg('num_plazos')" />
                             </div>
                             <div class="space-y-1">
                                 <Label>Periodicidad <span class="text-destructive">*</span></Label>
@@ -340,30 +412,33 @@ return;
                         <div class="space-y-1">
                             <Label>Fecha de inicio <span class="text-destructive">*</span></Label>
                             <Input v-model="form.fecha_inicio" type="date" required />
-                            <p v-if="form.errors.fecha_inicio" class="text-destructive text-xs">{{ form.errors.fecha_inicio }}</p>
+                            <InputError :message="msg('fecha_inicio')" />
                         </div>
 
                         <div class="space-y-1">
                             <Label>Concepto</Label>
-                            <Input v-model="form.concepto" placeholder="Motivo del préstamo" />
+                            <Input v-model="form.concepto" placeholder="Motivo del préstamo" maxlength="500" />
                         </div>
 
                         <div class="space-y-1">
                             <Label>Autoriza</Label>
-                            <Input v-model="form.autoriza" placeholder="Nombre de quien autoriza" />
+                            <Input v-model="form.autoriza" placeholder="Nombre de quien autoriza" maxlength="255" />
                         </div>
 
                         <DialogFooter>
                             <Button type="button" variant="outline" @click="showForm = false">Cancelar</Button>
-                            <Button type="submit" :disabled="form.processing">Registrar</Button>
+                            <Button type="submit" :disabled="form.processing" class="gap-1.5">
+                                <Spinner v-if="form.processing" class="size-4" />
+                                {{ form.processing ? 'Registrando…' : 'Registrar' }}
+                            </Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>
             </Dialog>
         </div>
 
-        <!-- Tabla -->
-        <div class="overflow-x-auto rounded-xl border">
+        <!-- Tabla escritorio (≥ lg) -->
+        <div class="hidden overflow-x-auto rounded-xl border lg:block">
             <table class="w-full text-sm">
                 <thead class="bg-muted/50 border-b">
                     <tr>
@@ -414,11 +489,12 @@ return;
                             <td class="px-4 py-3 text-right" @click.stop>
                                 <Button
                                     size="sm" variant="ghost" class="text-destructive"
-                                    :disabled="p.cuotas.some(c => c.estado === 'PAGADA')"
+                                    :disabled="eliminando === p.id || p.cuotas.some(c => c.estado === 'PAGADA')"
                                     :title="p.cuotas.some(c => c.estado === 'PAGADA') ? 'Ya tiene cuotas pagadas, no se puede eliminar' : undefined"
                                     @click="eliminar(p)"
                                 >
-                                    <Trash2 class="size-3.5" />
+                                    <Spinner v-if="eliminando === p.id" class="size-3.5" />
+                                    <Trash2 v-else class="size-3.5" />
                                 </Button>
                             </td>
                         </tr>
@@ -433,8 +509,13 @@ return;
                                         <CalendarClock class="size-3.5" />
                                         Aplazar seleccionados
                                     </Button>
-                                    <Button size="sm" variant="outline" class="h-7 text-xs" @click="distribuirCarga(p)">
-                                        <HandCoins class="size-3.5" />
+                                    <Button
+                                        size="sm" variant="outline" class="h-7 gap-1.5 text-xs"
+                                        :disabled="distribuyendo === p.id"
+                                        @click="distribuirCarga(p)"
+                                    >
+                                        <Spinner v-if="distribuyendo === p.id" class="size-3.5" />
+                                        <HandCoins v-else class="size-3.5" />
                                         Distribuir carga ({{ selDePrestamo(p).length }})
                                     </Button>
                                     <span class="text-muted-foreground text-[11px]">
@@ -471,18 +552,20 @@ return;
                                             </Button>
                                             <Button
                                                 v-if="c.estado === 'PENDIENTE'"
-                                                size="sm" variant="outline" class="h-6 shrink-0 text-xs"
+                                                size="sm" variant="outline" class="h-6 shrink-0 gap-1.5 text-xs"
                                                 :disabled="pagando.has(c.id)"
                                                 @click="pagarCuota(c)"
                                             >
+                                                <Spinner v-if="pagando.has(c.id)" class="size-3" />
                                                 Marcar pagada
                                             </Button>
                                             <Button
                                                 v-else-if="!c.historico_nomina_id"
-                                                size="sm" variant="ghost" class="h-6 shrink-0 text-xs text-muted-foreground"
+                                                size="sm" variant="ghost" class="h-6 shrink-0 gap-1 text-xs text-muted-foreground"
                                                 :disabled="pagando.has(c.id)"
                                                 @click="revertirCuota(c)"
                                             >
+                                                <Spinner v-if="pagando.has(c.id)" class="size-3" />
                                                 Revertir
                                             </Button>
                                         </div>
@@ -493,6 +576,134 @@ return;
                     </template>
                 </tbody>
             </table>
+        </div>
+
+        <!-- Cards móvil (< lg) -->
+        <div class="flex flex-col gap-3 lg:hidden">
+            <div v-if="props.prestamos.length === 0" class="text-muted-foreground rounded-xl border border-dashed py-10 text-center text-sm">
+                Sin préstamos registrados.
+            </div>
+
+            <div v-for="p in props.prestamos" :key="p.id" class="rounded-xl border p-4">
+                <button class="flex w-full items-start justify-between gap-2 text-left" @click="toggle(p.id)">
+                    <div class="min-w-0">
+                        <p class="truncate font-medium">{{ p.colaborador.apellidos }}, {{ p.colaborador.nombre }}</p>
+                        <p class="text-muted-foreground mt-0.5 text-xs">
+                            {{ tipoLabel[p.colaborador.tipo] }} · {{ p.num_plazos }} · {{ periodicidadLabel[p.periodicidad] }}
+                        </p>
+                    </div>
+                    <div class="flex flex-shrink-0 items-center gap-2">
+                        <span
+                            class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium"
+                            :class="estaLiquidado(p)
+                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400'
+                                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400'"
+                        >
+                            {{ estaLiquidado(p) ? 'Liquidado' : 'Activo' }}
+                        </span>
+                        <component :is="abiertos.has(p.id) ? ChevronDown : ChevronRight" class="text-muted-foreground size-4" />
+                    </div>
+                </button>
+
+                <dl class="mt-3 space-y-1.5 text-sm">
+                    <div class="flex items-center justify-between gap-3">
+                        <dt class="text-muted-foreground text-xs">Monto total</dt>
+                        <dd class="font-medium tabular-nums">{{ fmtMoney(p.monto_total) }}</dd>
+                    </div>
+                    <div class="flex items-center justify-between gap-3">
+                        <dt class="text-muted-foreground text-xs">Saldo pendiente</dt>
+                        <dd class="tabular-nums">{{ fmtMoney(saldoPendiente(p)) }}</dd>
+                    </div>
+                    <div class="flex items-center justify-between gap-3">
+                        <dt class="text-muted-foreground text-xs">Inicio</dt>
+                        <dd class="tabular-nums">{{ fmtFecha(p.fecha_inicio) }}</dd>
+                    </div>
+                </dl>
+
+                <div class="mt-3 flex items-center justify-between">
+                    <p v-if="p.concepto" class="text-muted-foreground text-xs">
+                        {{ p.concepto }}<template v-if="p.autoriza"> · Autoriza: {{ p.autoriza }}</template>
+                    </p>
+                    <Button
+                        size="sm" variant="ghost" class="text-destructive"
+                        :disabled="eliminando === p.id || p.cuotas.some(c => c.estado === 'PAGADA')"
+                        @click="eliminar(p)"
+                    >
+                        <Spinner v-if="eliminando === p.id" class="size-3.5" />
+                        <Trash2 v-else class="size-3.5" />
+                    </Button>
+                </div>
+
+                <div v-if="abiertos.has(p.id)" class="mt-3 border-t pt-3">
+                    <div v-if="selDePrestamo(p).length > 0" class="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-dashed px-3 py-2">
+                        <Button size="sm" variant="outline" class="h-7 text-xs" @click="abrirAplazar(selDePrestamo(p).map(c => c.id))">
+                            <CalendarClock class="size-3.5" />
+                            Aplazar
+                        </Button>
+                        <Button
+                            size="sm" variant="outline" class="h-7 gap-1.5 text-xs"
+                            :disabled="distribuyendo === p.id"
+                            @click="distribuirCarga(p)"
+                        >
+                            <Spinner v-if="distribuyendo === p.id" class="size-3.5" />
+                            <HandCoins v-else class="size-3.5" />
+                            Distribuir ({{ selDePrestamo(p).length }})
+                        </Button>
+                    </div>
+
+                    <div class="space-y-2">
+                        <div v-for="c in p.cuotas" :key="c.id" class="rounded-md border bg-muted/20 p-2 text-xs">
+                            <div class="flex items-center gap-2">
+                                <Checkbox
+                                    v-if="cuotaModificable(c)"
+                                    :model-value="plazosSel.has(c.id)"
+                                    @update:model-value="() => toggleCuota(c.id)"
+                                />
+                                <span class="text-muted-foreground whitespace-nowrap">Plazo {{ c.numero_plazo }}/{{ p.num_plazos }}</span>
+                                <span class="tabular-nums whitespace-nowrap">{{ fmtFecha(c.fecha_programada) }}</span>
+                                <span class="tabular-nums font-medium whitespace-nowrap ml-auto">{{ fmtMoney(c.monto) }}</span>
+                                <span class="rounded px-1.5 py-0.5 font-medium whitespace-nowrap" :class="cuotaBadge[c.estado]">
+                                    {{ c.estado === 'PAGADA' ? 'Pagada' : 'Pendiente' }}
+                                </span>
+                            </div>
+                            <p v-if="c.fecha_pago" class="text-muted-foreground mt-1">
+                                Pagada el {{ fmtFecha(c.fecha_pago) }}<template v-if="c.historico_nomina_id"> (vía nómina)</template>
+                            </p>
+                            <p v-else-if="c.historico_nomina_id" class="text-muted-foreground mt-1">
+                                Incluida en nómina guardada — no modificable
+                            </p>
+                            <div class="mt-2 flex flex-wrap gap-1.5">
+                                <Button
+                                    v-if="cuotaModificable(c)"
+                                    size="sm" variant="ghost" class="h-6 text-xs"
+                                    title="Cambiar fecha del plazo"
+                                    @click="abrirAplazar([c.id])"
+                                >
+                                    <CalendarClock class="size-3.5" />
+                                </Button>
+                                <Button
+                                    v-if="c.estado === 'PENDIENTE'"
+                                    size="sm" variant="outline" class="h-6 gap-1.5 text-xs"
+                                    :disabled="pagando.has(c.id)"
+                                    @click="pagarCuota(c)"
+                                >
+                                    <Spinner v-if="pagando.has(c.id)" class="size-3" />
+                                    Marcar pagada
+                                </Button>
+                                <Button
+                                    v-else-if="!c.historico_nomina_id"
+                                    size="sm" variant="ghost" class="h-6 gap-1 text-xs text-muted-foreground"
+                                    :disabled="pagando.has(c.id)"
+                                    @click="revertirCuota(c)"
+                                >
+                                    <Spinner v-if="pagando.has(c.id)" class="size-3" />
+                                    Revertir
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -515,7 +726,10 @@ return;
             </div>
             <DialogFooter>
                 <Button type="button" variant="outline" @click="aplazarAbierto = false">Cancelar</Button>
-                <Button :disabled="!nuevaFechaPlazo" @click="confirmarAplazar">Confirmar</Button>
+                <Button :disabled="!nuevaFechaPlazo || aplazando" class="gap-1.5" @click="confirmarAplazar">
+                    <Spinner v-if="aplazando" class="size-4" />
+                    {{ aplazando ? 'Aplazando…' : 'Confirmar' }}
+                </Button>
             </DialogFooter>
         </DialogContent>
     </Dialog>

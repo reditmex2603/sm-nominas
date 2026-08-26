@@ -50,7 +50,9 @@ class PrestamoController extends Controller
             $this->generarCuotas($prestamo);
         });
 
-        return back()->with('success', 'Préstamo registrado y calendario de cuotas generado.');
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Préstamo registrado y calendario de cuotas generado.']);
+
+        return back();
     }
 
     public function destroy(Prestamo $prestamo): RedirectResponse
@@ -61,7 +63,9 @@ class PrestamoController extends Controller
 
         $prestamo->delete();
 
-        return back()->with('success', 'Préstamo eliminado.');
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Préstamo eliminado.']);
+
+        return back();
     }
 
     /**
@@ -72,12 +76,14 @@ class PrestamoController extends Controller
     public function pagarCuota(PrestamoCuota $cuota): RedirectResponse
     {
         if ($cuota->estado === 'PAGADA') {
-            return back()->with('error', 'Esta cuota ya está pagada.');
+            return back()->withErrors(['pago' => 'Esta cuota ya está pagada.']);
         }
 
         $cuota->update(['estado' => 'PAGADA', 'fecha_pago' => now()->toDateString()]);
 
-        return back()->with('success', 'Cuota marcada como pagada.');
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Cuota marcada como pagada.']);
+
+        return back();
     }
 
     /**
@@ -88,7 +94,7 @@ class PrestamoController extends Controller
     public function revertirCuota(PrestamoCuota $cuota): RedirectResponse
     {
         if ($cuota->estado !== 'PAGADA') {
-            return back()->with('error', 'Esta cuota no está pagada.');
+            return back()->withErrors(['revertir' => 'Esta cuota no está pagada.']);
         }
 
         if ($cuota->historico_nomina_id !== null) {
@@ -97,7 +103,9 @@ class PrestamoController extends Controller
 
         $cuota->update(['estado' => 'PENDIENTE', 'fecha_pago' => null]);
 
-        return back()->with('success', 'Pago revertido. La cuota vuelve a estar pendiente.');
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Pago revertido. La cuota vuelve a estar pendiente.']);
+
+        return back();
     }
 
     /**
