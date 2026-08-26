@@ -49,6 +49,8 @@ class EventoController extends Controller
 
         Evento::create($validated);
 
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Evento creado correctamente.']);
+
         return back();
     }
 
@@ -72,6 +74,8 @@ class EventoController extends Controller
 
         $evento->update($validated);
 
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Evento actualizado.']);
+
         return back();
     }
 
@@ -86,6 +90,8 @@ class EventoController extends Controller
         }
 
         $evento->delete();
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Evento eliminado.']);
 
         return back();
     }

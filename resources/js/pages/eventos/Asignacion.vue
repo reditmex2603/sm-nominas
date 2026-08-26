@@ -15,6 +15,7 @@ import {
 } from 'reka-ui';
 import { computed, ref, watch } from 'vue';
 import ColaboradorPerfilModal from '@/components/ColaboradorPerfilModal.vue';
+import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,6 +26,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 import { fmtFecha } from '@/lib/fecha';
 import { tipoPagoBadgeClass, tipoPagoLabel  } from '@/lib/tipoPago';
 import type {TipoPago} from '@/lib/tipoPago';
@@ -236,6 +238,62 @@ const detalleForm = useForm({
 
 const guardarDetalle = () => {
     detalleForm.put(`/eventos/${props.evento.id}`, { preserveScroll: true });
+};
+
+// ── Validación cliente del formulario de Detalles ──────────────────
+const detalleIntentado = ref(false);
+
+const digitos = (v?: string): string => (v ?? '').replace(/\D/g, '');
+const telefonoValido = (v: string): boolean => {
+    const d = digitos(v);
+
+    return d.length >= 10 && d.length <= 13;
+};
+
+const erroresDetalle = computed<Record<string, string>>(() => {
+    const e: Record<string, string> = {};
+
+    if (!detalleForm.nombre.trim()) {
+        e.nombre = 'El nombre es obligatorio.';
+    }
+
+    if (detalleForm.fecha_inicio && detalleForm.fecha_fin && detalleForm.fecha_fin < detalleForm.fecha_inicio) {
+        e.fecha_fin = 'La fecha de fin no puede ser anterior al inicio.';
+    }
+
+    if (detalleForm.telefono_contratante && !telefonoValido(detalleForm.telefono_contratante)) {
+        e.telefono_contratante = 'Teléfono inválido (10 a 13 dígitos).';
+    }
+
+    if (detalleForm.contacto_telefono && !telefonoValido(detalleForm.contacto_telefono)) {
+        e.contacto_telefono = 'Teléfono inválido (10 a 13 dígitos).';
+    }
+
+    if (detalleForm.enlace_ubicacion && !/^https?:\/\/.+/i.test(detalleForm.enlace_ubicacion.trim())) {
+        e.enlace_ubicacion = 'Ingresa una URL válida (https://…).';
+    }
+
+    return e;
+});
+
+const msgDetalle = (campo: string): string => {
+    const cliente = erroresDetalle.value[campo];
+
+    if (detalleIntentado.value && cliente) {
+        return cliente;
+    }
+
+    return (detalleForm.errors as Record<string, string>)[campo] ?? '';
+};
+
+const submitDetalle = () => {
+    detalleIntentado.value = true;
+
+    if (Object.keys(erroresDetalle.value).length > 0) {
+        return;
+    }
+
+    guardarDetalle();
 };
 
 const CATEGORIAS: Categoria[] = ['Encargado de área', 'Técnico', 'Stagehand SM'];
@@ -1094,31 +1152,31 @@ const categoriaCortaLabel: Record<Categoria, string> = {
         </template>
 
         <template v-else-if="activeTab === 'detalles'">
-        <form class="flex flex-col gap-6" @submit.prevent="guardarDetalle">
+        <form class="flex flex-col gap-6" @submit.prevent="submitDetalle">
             <!-- Datos del evento -->
             <fieldset class="space-y-4 rounded-xl border p-4">
                 <legend class="px-1 text-sm font-medium">Datos del evento</legend>
 
-                <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
-                    <div class="col-span-2 space-y-1">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
+                    <div class="space-y-1 sm:col-span-2">
                         <Label>Nombre <span class="text-destructive">*</span></Label>
-                        <Input v-model="detalleForm.nombre" required />
-                        <p v-if="detalleForm.errors.nombre" class="text-destructive text-xs">{{ detalleForm.errors.nombre }}</p>
+                        <Input v-model="detalleForm.nombre" maxlength="255" required />
+                        <InputError :message="msgDetalle('nombre')" />
                     </div>
-                    <div class="col-span-2 space-y-1">
+                    <div class="space-y-1 sm:col-span-2">
                         <Label>Lugar</Label>
-                        <Input v-model="detalleForm.lugar" />
-                        <p v-if="detalleForm.errors.lugar" class="text-destructive text-xs">{{ detalleForm.errors.lugar }}</p>
+                        <Input v-model="detalleForm.lugar" maxlength="255" />
+                        <InputError :message="msgDetalle('lugar')" />
                     </div>
                     <div class="space-y-1">
                         <Label>Fecha inicio</Label>
                         <Input v-model="detalleForm.fecha_inicio" type="date" />
-                        <p v-if="detalleForm.errors.fecha_inicio" class="text-destructive text-xs">{{ detalleForm.errors.fecha_inicio }}</p>
+                        <InputError :message="msgDetalle('fecha_inicio')" />
                     </div>
                     <div class="space-y-1">
                         <Label>Fecha fin</Label>
                         <Input v-model="detalleForm.fecha_fin" type="date" />
-                        <p v-if="detalleForm.errors.fecha_fin" class="text-destructive text-xs">{{ detalleForm.errors.fecha_fin }}</p>
+                        <InputError :message="msgDetalle('fecha_fin')" />
                     </div>
                     <div class="space-y-1">
                         <Label>Tamaño</Label>
@@ -1135,8 +1193,8 @@ const categoriaCortaLabel: Record<Categoria, string> = {
                     </div>
                     <div class="space-y-1">
                         <Label>Pago por evento (freelance)</Label>
-                        <Input v-model="detalleForm.pago_por_evento_completo" type="number" step="0.01" min="0" />
-                        <p v-if="detalleForm.errors.pago_por_evento_completo" class="text-destructive text-xs">{{ detalleForm.errors.pago_por_evento_completo }}</p>
+                        <Input v-model="detalleForm.pago_por_evento_completo" type="number" step="0.01" min="0" inputmode="decimal" />
+                        <InputError :message="msgDetalle('pago_por_evento_completo')" />
                     </div>
                 </div>
             </fieldset>
@@ -1145,55 +1203,58 @@ const categoriaCortaLabel: Record<Categoria, string> = {
             <fieldset class="space-y-4 rounded-xl border p-4">
                 <legend class="px-1 text-sm font-medium">Contratación y detalle</legend>
 
-                <div class="grid grid-cols-2 gap-4 md:grid-cols-3">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
                     <div class="space-y-1">
                         <Label>Nombre del contratante</Label>
-                        <Input v-model="detalleForm.nombre_contratante" />
+                        <Input v-model="detalleForm.nombre_contratante" maxlength="255" />
                     </div>
                     <div class="space-y-1">
                         <Label>Teléfono del contratante</Label>
-                        <Input v-model="detalleForm.telefono_contratante" type="tel" maxlength="20" placeholder="10 dígitos" />
-                        <p v-if="detalleForm.errors.telefono_contratante" class="text-destructive text-xs">{{ detalleForm.errors.telefono_contratante }}</p>
+                        <Input v-model="detalleForm.telefono_contratante" type="tel" inputmode="tel" maxlength="13" placeholder="10 dígitos" />
+                        <InputError :message="msgDetalle('telefono_contratante')" />
                     </div>
                     <div class="space-y-1">
                         <Label>Contacto del evento</Label>
-                        <Input v-model="detalleForm.contacto_nombre" />
+                        <Input v-model="detalleForm.contacto_nombre" maxlength="255" />
                     </div>
                     <div class="space-y-1">
                         <Label>Teléfono del contacto</Label>
-                        <Input v-model="detalleForm.contacto_telefono" type="tel" maxlength="20" placeholder="10 dígitos" />
-                        <p v-if="detalleForm.errors.contacto_telefono" class="text-destructive text-xs">{{ detalleForm.errors.contacto_telefono }}</p>
+                        <Input v-model="detalleForm.contacto_telefono" type="tel" inputmode="tel" maxlength="13" placeholder="10 dígitos" />
+                        <InputError :message="msgDetalle('contacto_telefono')" />
                     </div>
-                    <div class="col-span-2 space-y-1">
+                    <div class="space-y-1 sm:col-span-2 md:col-span-1">
                         <Label>Enlace de la ubicación</Label>
-                        <Input v-model="detalleForm.enlace_ubicacion" type="url" placeholder="https://maps.app.goo.gl/..." />
-                        <p v-if="detalleForm.errors.enlace_ubicacion" class="text-destructive text-xs">{{ detalleForm.errors.enlace_ubicacion }}</p>
+                        <Input v-model="detalleForm.enlace_ubicacion" type="url" placeholder="https://maps.app.goo.gl/..." maxlength="1000" />
+                        <InputError :message="msgDetalle('enlace_ubicacion')" />
                     </div>
-                    <div class="col-span-2 space-y-1 md:col-span-3">
+                    <div class="space-y-1 sm:col-span-2 md:col-span-2">
                         <Label>Descripción del evento</Label>
                         <textarea
                             v-model="detalleForm.descripcion"
                             rows="3"
+                            maxlength="5000"
                             class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 w-full resize-none rounded-md border bg-transparent px-3 py-1.5 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:ring-[3px]"
                         />
-                        <p v-if="detalleForm.errors.descripcion" class="text-destructive text-xs">{{ detalleForm.errors.descripcion }}</p>
+                        <InputError :message="msgDetalle('descripcion')" />
                     </div>
-                    <div class="col-span-2 space-y-1 md:col-span-3">
+                    <div class="space-y-1 sm:col-span-2 md:col-span-3">
                         <Label>Observaciones técnicas</Label>
                         <textarea
                             v-model="detalleForm.observaciones_tecnicas"
                             rows="2"
+                            maxlength="5000"
                             class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 w-full resize-none rounded-md border bg-transparent px-3 py-1.5 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:ring-[3px]"
                         />
-                        <p v-if="detalleForm.errors.observaciones_tecnicas" class="text-destructive text-xs">{{ detalleForm.errors.observaciones_tecnicas }}</p>
+                        <InputError :message="msgDetalle('observaciones_tecnicas')" />
                     </div>
                 </div>
             </fieldset>
 
             <div class="flex flex-wrap items-center gap-2">
-                <Button type="submit" :disabled="detalleForm.processing">
-                    <Save class="size-4" />
-                    Guardar evento
+                <Button type="submit" :disabled="detalleForm.processing" class="gap-1.5">
+                    <Spinner v-if="detalleForm.processing" class="size-4" />
+                    <Save v-else class="size-4" />
+                    {{ detalleForm.processing ? 'Guardando…' : 'Guardar evento' }}
                 </Button>
                 <Button type="button" variant="outline" class="gap-1.5" @click="abrirImprimirDetalles">
                     <Printer class="size-3.5" />
@@ -1259,7 +1320,10 @@ const categoriaCortaLabel: Record<Categoria, string> = {
                 </div>
 
                 <div class="flex gap-2">
-                    <Button size="sm" :disabled="guardandoRequisitos" @click="guardarRequisitos">Guardar</Button>
+                    <Button size="sm" class="gap-1.5" :disabled="guardandoRequisitos" @click="guardarRequisitos">
+                        <Spinner v-if="guardandoRequisitos" class="size-3.5" />
+                        {{ guardandoRequisitos ? 'Guardando…' : 'Guardar' }}
+                    </Button>
                     <Button size="sm" variant="outline" :disabled="guardandoRequisitos" @click="limpiarRequisitos">Limpiar</Button>
                 </div>
             </template>
