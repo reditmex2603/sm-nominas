@@ -3,6 +3,7 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { Eye, Pencil, Plus, Printer, Settings2, Trash2, X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
+import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -21,6 +22,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 import { useConfirm } from '@/composables/useConfirm';
 import * as unidadPerfil from '@/routes/transportes/unidades/perfil';
 
@@ -167,10 +169,49 @@ const createUnidadForm = useForm({
     transporte_vehiculo_id: '' as string,
 });
 
+const unidadIntentado = ref(false);
+
+const erroresUnidad = computed<Record<string, string>>(() => {
+    const e: Record<string, string> = {};
+
+    if (!createUnidadForm.marca.trim()) {
+        e.marca = 'La marca es obligatoria.';
+    }
+
+    if (!createUnidadForm.modelo.trim()) {
+        e.modelo = 'El modelo es obligatorio.';
+    }
+
+    return e;
+});
+
+const msgUnidad = (campo: string): string => {
+    const cliente = erroresUnidad.value[campo];
+
+    if (unidadIntentado.value && cliente) {
+        return cliente;
+    }
+
+    return (createUnidadForm.errors as Record<string, string>)[campo] ?? '';
+};
+
+watch(() => showCreateUnidad, (open) => {
+    if (open) {
+        unidadIntentado.value = false;
+    }
+});
+
 const submitCreateUnidad = () => {
+    unidadIntentado.value = true;
+
+    if (Object.keys(erroresUnidad.value).length > 0) {
+        return;
+    }
+
     createUnidadForm.post('/transportes/unidades', {
         onSuccess: () => {
             showCreateUnidad.value = false;
+            unidadIntentado.value = false;
             createUnidadForm.reset();
         },
     });
@@ -203,24 +244,37 @@ watch(() => props.unidades, (lista) => {
     }
 }, { immediate: true, deep: true });
 
+const guardandoUnidadId = ref<number | null>(null);
+
 const guardarUnidad = (u: Unidad) => {
+    guardandoUnidadId.value = u.id;
     router.put(`/transportes/unidades/${u.id}`, { ...editUnidades.value[u.id] }, {
         preserveScroll: true,
-        onSuccess: () => toast.success('Unidad actualizada.'),
-        onError: (errors) => toast.error(Object.values(errors).join(' ')),
+        onFinish: () => {
+ guardandoUnidadId.value = null; 
+},
     });
 };
 
 const { confirm } = useConfirm();
+const eliminandoUnidadId = ref<number | null>(null);
 
 const eliminarUnidad = async (u: Unidad) => {
     const ok = await confirm(`¿Eliminar la unidad "${u.marca} ${u.modelo}"? Esta acción no se puede deshacer.`, {
         title: 'Eliminar unidad',
     });
 
-    if (ok) {
-router.delete(`/transportes/unidades/${u.id}`, { preserveScroll: true });
+    if (!ok) {
+return;
 }
+
+    eliminandoUnidadId.value = u.id;
+    router.delete(`/transportes/unidades/${u.id}`, {
+        preserveScroll: true,
+        onFinish: () => {
+ eliminandoUnidadId.value = null; 
+},
+    });
 };
 
 const abrirPerfilUnidad = (u: Unidad) => {
@@ -342,22 +396,23 @@ const abrirPerfilUnidad = (u: Unidad) => {
                     </DialogHeader>
 
                     <form class="grid gap-4" @submit.prevent="submitCreateUnidad">
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div class="space-y-1">
-                                <Label>Marca</Label>
-                                <Input v-model="createUnidadForm.marca" required />
-                                <p v-if="createUnidadForm.errors.marca" class="text-destructive text-xs">{{ createUnidadForm.errors.marca }}</p>
+                                <Label>Marca <span class="text-destructive">*</span></Label>
+                                <Input v-model="createUnidadForm.marca" maxlength="255" required />
+                                <InputError :message="msgUnidad('marca')" />
                             </div>
                             <div class="space-y-1">
-                                <Label>Modelo</Label>
-                                <Input v-model="createUnidadForm.modelo" required />
-                                <p v-if="createUnidadForm.errors.modelo" class="text-destructive text-xs">{{ createUnidadForm.errors.modelo }}</p>
+                                <Label>Modelo <span class="text-destructive">*</span></Label>
+                                <Input v-model="createUnidadForm.modelo" maxlength="255" required />
+                                <InputError :message="msgUnidad('modelo')" />
                             </div>
                         </div>
 
                         <div class="space-y-1">
                             <Label>Número de placas</Label>
-                            <Input v-model="createUnidadForm.numero_placas" placeholder="Opcional" />
+                            <Input v-model="createUnidadForm.numero_placas" maxlength="50" placeholder="Opcional" />
+                            <InputError :message="msgUnidad('numero_placas')" />
                         </div>
 
                         <div class="space-y-1">
@@ -381,11 +436,15 @@ const abrirPerfilUnidad = (u: Unidad) => {
                                     <SelectItem v-for="v in vehiculos" :key="v.id" :value="String(v.id)">{{ v.nombre }}</SelectItem>
                                 </SelectContent>
                             </Select>
+                            <InputError :message="msgUnidad('transporte_vehiculo_id')" />
                         </div>
 
                         <DialogFooter>
                             <Button type="button" variant="outline" @click="showCreateUnidad = false">Cancelar</Button>
-                            <Button type="submit" :disabled="createUnidadForm.processing">Crear</Button>
+                            <Button type="submit" :disabled="createUnidadForm.processing" class="gap-1.5">
+                                <Spinner v-if="createUnidadForm.processing" class="size-4" />
+                                {{ createUnidadForm.processing ? 'Creando…' : 'Crear' }}
+                            </Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>
@@ -520,7 +579,8 @@ const abrirPerfilUnidad = (u: Unidad) => {
         </template>
 
         <template v-else-if="activeTab === 'unidades'">
-        <div class="overflow-x-auto rounded-xl border">
+        <!-- Tabla escritorio (≥ lg) -->
+        <div class="hidden overflow-x-auto rounded-xl border lg:block">
             <table class="w-full text-sm">
                 <thead class="bg-muted/50 border-b">
                     <tr>
@@ -571,8 +631,15 @@ const abrirPerfilUnidad = (u: Unidad) => {
                         </td>
                         <td class="px-4 py-3">
                             <div class="flex justify-end gap-1">
-                                <Button size="sm" variant="outline" @click="guardarUnidad(u)">
-                                    <Pencil class="size-3.5" />
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    class="gap-1.5"
+                                    :disabled="guardandoUnidadId === u.id"
+                                    @click="guardarUnidad(u)"
+                                >
+                                    <Spinner v-if="guardandoUnidadId === u.id" class="size-3.5" />
+                                    <Pencil v-else class="size-3.5" />
                                     Guardar
                                 </Button>
                                 <Button size="sm" variant="outline" as-child>
@@ -584,14 +651,115 @@ const abrirPerfilUnidad = (u: Unidad) => {
                                 <Button size="sm" variant="ghost" class="text-muted-foreground hover:text-foreground" title="Imprimir perfil" @click="abrirPerfilUnidad(u)">
                                     <Printer class="size-3.5" />
                                 </Button>
-                                <Button size="sm" variant="ghost" class="text-destructive" @click="eliminarUnidad(u)">
-                                    <Trash2 class="size-3.5" />
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    class="text-destructive"
+                                    :disabled="eliminandoUnidadId === u.id"
+                                    @click="eliminarUnidad(u)"
+                                >
+                                    <Spinner v-if="eliminandoUnidadId === u.id" class="size-3.5" />
+                                    <Trash2 v-else class="size-3.5" />
                                 </Button>
                             </div>
                         </td>
                     </tr>
                 </tbody>
             </table>
+        </div>
+
+        <!-- Cards móvil (< lg) -->
+        <div class="flex flex-col gap-3 lg:hidden">
+            <div v-if="unidades.length === 0" class="text-muted-foreground rounded-xl border border-dashed py-10 text-center text-sm">
+                Sin unidades registradas.
+            </div>
+
+            <div v-for="u in unidades" :key="u.id" class="rounded-xl border p-4">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                        <p class="truncate font-medium">{{ editUnidades[u.id].marca || 'Sin marca' }} {{ editUnidades[u.id].modelo }}</p>
+                        <span
+                            class="mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium"
+                            :class="pertenenciaBadge[editUnidades[u.id].pertenencia].class"
+                        >
+                            {{ pertenenciaBadge[editUnidades[u.id].pertenencia].label }}
+                        </span>
+                    </div>
+                    <div class="flex flex-shrink-0 gap-1">
+                        <Button size="sm" variant="ghost" class="text-muted-foreground hover:text-foreground" title="Imprimir perfil" @click="abrirPerfilUnidad(u)">
+                            <Printer class="size-3.5" />
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            class="text-destructive"
+                            :disabled="eliminandoUnidadId === u.id"
+                            @click="eliminarUnidad(u)"
+                        >
+                            <Spinner v-if="eliminandoUnidadId === u.id" class="size-3.5" />
+                            <Trash2 v-else class="size-3.5" />
+                        </Button>
+                    </div>
+                </div>
+
+                <div class="mt-3 space-y-3">
+                    <div class="space-y-1">
+                        <Label class="text-muted-foreground text-xs">Marca</Label>
+                        <Input v-model="editUnidades[u.id].marca" />
+                    </div>
+                    <div class="space-y-1">
+                        <Label class="text-muted-foreground text-xs">Modelo</Label>
+                        <Input v-model="editUnidades[u.id].modelo" />
+                    </div>
+                    <div class="space-y-1">
+                        <Label class="text-muted-foreground text-xs">Placas</Label>
+                        <Input v-model="editUnidades[u.id].numero_placas" />
+                    </div>
+                    <div class="space-y-1">
+                        <Label class="text-muted-foreground text-xs">Pertenencia</Label>
+                        <Select v-model="editUnidades[u.id].pertenencia">
+                            <SelectTrigger class="w-full">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="PROPIA">Propia</SelectItem>
+                                <SelectItem value="RENTADA">Rentada</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div class="space-y-1">
+                        <Label class="text-muted-foreground text-xs">Categoría (tarifa)</Label>
+                        <Select v-model="editUnidades[u.id].transporte_vehiculo_id">
+                            <SelectTrigger class="w-full">
+                                <SelectValue placeholder="Sin asignar" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem v-for="v in vehiculos" :key="v.id" :value="String(v.id)">{{ v.nombre }}</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+
+                <div class="mt-3 flex gap-2">
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        class="gap-1.5"
+                        :disabled="guardandoUnidadId === u.id"
+                        @click="guardarUnidad(u)"
+                    >
+                        <Spinner v-if="guardandoUnidadId === u.id" class="size-3.5" />
+                        <Pencil v-else class="size-3.5" />
+                        Guardar
+                    </Button>
+                    <Button size="sm" variant="outline" class="gap-1.5" as-child>
+                        <Link :href="`/transportes/unidades/${u.id}`">
+                            <Eye class="size-3.5" />
+                            Detalle
+                        </Link>
+                    </Button>
+                </div>
+            </div>
         </div>
         </template>
     </div>

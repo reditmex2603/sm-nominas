@@ -102,6 +102,8 @@ class TransporteController extends Controller
 
         $distancia->delete();
 
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Distancia eliminada.']);
+
         return back();
     }
 
@@ -112,6 +114,8 @@ class TransporteController extends Controller
         }
 
         $vehiculo->delete();
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Vehículo eliminado.']);
 
         return back();
     }

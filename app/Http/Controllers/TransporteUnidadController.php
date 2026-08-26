@@ -28,6 +28,8 @@ class TransporteUnidadController extends Controller
 
         TransporteUnidad::create($validated);
 
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Unidad de transporte creada.']);
+
         return back();
     }
 
@@ -42,6 +44,8 @@ class TransporteUnidadController extends Controller
         ]);
 
         $unidad->update($validated);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Unidad actualizada.']);
 
         return back();
     }
@@ -60,6 +64,8 @@ class TransporteUnidadController extends Controller
         }
 
         $unidad->delete();
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Unidad eliminada.']);
 
         return back();
     }
