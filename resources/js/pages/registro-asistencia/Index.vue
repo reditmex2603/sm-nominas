@@ -271,7 +271,16 @@ const msgAdd = (campo: string): string => {
 
 watch(() => showAdd, (open) => {
     if (open) {
+        // Siempre arranca limpio: refleja los datos persistidos actuales (listas de props
+        // frescas) y descarta cualquier valor obsoleto de un intento previo cancelado.
         addIntentado.value = false;
+        evidenciaError.value = '';
+        addForm.reset();
+        addForm.fecha = today;
+        addForm.hora = nowTime;
+        addForm.tipo_actividad = 'Bodega';
+        addExtras.value = [];
+        addEtapas.value = [];
     }
 });
 
@@ -348,7 +357,11 @@ const editForm = useForm({
 });
 
 watch(() => editForm.tipo_actividad, () => {
- editExtras.value = []; editEtapas.value = []; 
+    // No borrar lo que abrirEdicion() acaba de cargar desde el registro persistido.
+    if (!cargandoEdicion.value) {
+        editExtras.value = [];
+        editEtapas.value = [];
+    }
 });
 
 // true mientras abrirEdicion() precarga el formulario, para que el watch de abajo no borre la
@@ -642,15 +655,15 @@ return props.eventos;
                                                 v-for="opt in EVENTO_EXTRAS"
                                                 :key="opt"
                                                 class="flex cursor-pointer items-center gap-2 text-sm leading-tight"
-                                        >
-                                            <Checkbox
-                                                :model-value="addExtras.includes(opt)"
-                                                @update:model-value="toggleExtra(addExtras, opt)"
-                                            />
-                                            {{ opt }}
-                                        </label>
+                                            >
+                                                <Checkbox
+                                                    :model-value="addExtras.includes(opt)"
+                                                    @update:model-value="toggleExtra(addExtras, opt)"
+                                                />
+                                                {{ opt }}
+                                            </label>
+                                        </div>
                                     </div>
-                                </div>
                                 </div>
                             </template>
 
@@ -719,24 +732,28 @@ return props.eventos;
                             <!-- Evidencia -->
                             <div class="space-y-1.5">
                                 <Label>Evidencia fotográfica</Label>
-                                <div class="flex flex-col items-stretch gap-3 rounded-lg border border-dashed p-3 sm:flex-row sm:items-center">
-                                    <div class="flex items-center gap-3">
-                                        <div class="text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-md border bg-background">
-                                            <Camera class="size-5" />
-                                        </div>
-                                        <div class="min-w-0">
-                                            <p class="text-sm font-medium">Subir foto</p>
-                                            <p class="text-muted-foreground text-xs">PNG, JPG hasta 5 MB. Puedes tomar una foto directamente con la cámara.</p>
-                                        </div>
-                                    </div>
+                                <label
+                                    class="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed bg-muted/20 p-4 text-center transition-colors hover:bg-muted/40"
+                                >
                                     <input
                                         type="file"
                                         accept="image/*"
                                         capture="environment"
-                                        class="w-full text-sm file:mr-2 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1 file:text-sm file:font-medium cursor-pointer sm:w-auto"
+                                        class="sr-only"
                                         @change="onEvidenciaChange"
                                     />
-                                </div>
+                                    <Camera class="text-muted-foreground size-6" />
+                                    <span class="text-sm font-medium">Subir foto</span>
+                                    <span class="text-muted-foreground text-xs">
+                                        PNG, JPG hasta 5 MB. Puedes tomar una foto directamente con la cámara.
+                                    </span>
+                                    <span
+                                        v-if="addForm.evidencia"
+                                        class="text-primary max-w-full truncate text-xs font-medium"
+                                    >
+                                        {{ addForm.evidencia.name }}
+                                    </span>
+                                </label>
                                 <p v-if="evidenciaError" class="text-destructive flex items-center gap-1 text-xs" role="alert">
                                     {{ evidenciaError }}
                                 </p>
