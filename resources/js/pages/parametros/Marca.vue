@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { Image as ImageIcon, Palette, Trash2, Upload } from '@lucide/vue';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import { useConfirm } from '@/composables/useConfirm';
 
 interface BrandingProps {
@@ -34,6 +36,35 @@ const isotipoForm = useForm({
 
 const { confirm } = useConfirm();
 
+// ── Subida de archivos (logo/isotipo): validación MIME + 2 MB ─────
+const MAX_LOGO_MB = 2;
+const LOGO_MIMES = ['image/jpeg', 'image/png', 'image/webp'];
+const LOGO_ERROR = ref<Record<'logo' | 'isotipo', string>>({ logo: '', isotipo: '' });
+
+const onArchivoChange = (cual: 'logo' | 'isotipo', e: Event) => {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+
+    if (file) {
+        if (!LOGO_MIMES.includes(file.type)) {
+            LOGO_ERROR.value[cual] = 'Formato no permitido. Usa JPG, PNG o WebP.';
+            input.value = '';
+
+            return;
+        }
+
+        if (file.size > MAX_LOGO_MB * 1024 * 1024) {
+            LOGO_ERROR.value[cual] = `El archivo excede los ${MAX_LOGO_MB} MB permitidos.`;
+            input.value = '';
+
+            return;
+        }
+    }
+
+    LOGO_ERROR.value[cual] = '';
+    (cual === 'logo' ? logoForm : isotipoForm).archivo = file;
+};
+
 const guardarColores = () => {
     form.post('/parametros/marca/colores', { preserveScroll: true });
 };
@@ -50,18 +81,27 @@ const subirLogo = (cual: 'logo' | 'isotipo') => {
         forceFormData: true,
         onSuccess: () => {
             f.reset('archivo');
+            LOGO_ERROR.value[cual] = '';
         },
     });
 };
+
+const eliminandoLogo = ref<Record<'logo' | 'isotipo', boolean>>({ logo: false, isotipo: false });
 
 const eliminarLogo = async (cual: 'logo' | 'isotipo') => {
     const ok = await confirm(`¿Eliminar el ${cual} de la marca? Se quitará de la aplicación y de los documentos.`);
 
     if (!ok) {
-        return;
-    }
+return;
+}
 
-    router.delete(`/parametros/marca/logo/${cual}`, { preserveScroll: true });
+    eliminandoLogo.value[cual] = true;
+    router.delete(`/parametros/marca/logo/${cual}`, {
+        preserveScroll: true,
+        onFinish: () => {
+ eliminandoLogo.value[cual] = false; 
+},
+    });
 };
 
 const primarioValido = computed(() => /^#?[0-9A-Fa-f]{6}$/.test(form.color_primario.trim()));
@@ -151,10 +191,12 @@ const normalizarHex = (valor: string): string => {
 
             <div class="mt-4 flex justify-end">
                 <Button
+                    class="gap-1.5"
                     :disabled="form.processing || !primarioValido || !sidebarValido"
                     @click="guardarColores"
                 >
-                    Guardar colores
+                    <Spinner v-if="form.processing" class="size-4" />
+                    {{ form.processing ? 'Guardando…' : 'Guardar colores' }}
                 </Button>
             </div>
         </div>
@@ -185,25 +227,26 @@ const normalizarHex = (valor: string): string => {
                     <div class="flex items-center gap-2">
                         <Input
                             type="file"
-                            accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                            @change="(e: Event) => {
-                                const target = e.target as HTMLInputElement;
-                                logoForm.archivo = target.files?.[0] ?? null;
-                            }"
+                            accept=".jpg,.jpeg,.png,.webp"
+                            @change="(e: Event) => onArchivoChange('logo', e)"
                         />
                     </div>
+                    <InputError :message="LOGO_ERROR.logo || logoForm.errors.archivo" />
                     <div class="mt-2 flex justify-end gap-2">
                         <Button
                             v-if="props.branding.logo_url"
                             variant="outline"
-                            :disabled="logoForm.processing"
+                            class="gap-1.5"
+                            :disabled="logoForm.processing || eliminandoLogo.logo"
                             @click="eliminarLogo('logo')"
                         >
-                            <Trash2 class="size-4" />
+                            <Spinner v-if="eliminandoLogo.logo" class="size-4" />
+                            <Trash2 v-else class="size-4" />
                             Eliminar
                         </Button>
-                        <Button :disabled="!logoForm.archivo || logoForm.processing" @click="subirLogo('logo')">
-                            <Upload class="size-4" />
+                        <Button :disabled="!logoForm.archivo || logoForm.processing" class="gap-1.5" @click="subirLogo('logo')">
+                            <Spinner v-if="logoForm.processing" class="size-4" />
+                            <Upload v-else class="size-4" />
                             {{ logoForm.processing ? 'Subiendo…' : 'Guardar logo' }}
                         </Button>
                     </div>
@@ -234,25 +277,26 @@ const normalizarHex = (valor: string): string => {
                     <div class="flex items-center gap-2">
                         <Input
                             type="file"
-                            accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                            @change="(e: Event) => {
-                                const target = e.target as HTMLInputElement;
-                                isotipoForm.archivo = target.files?.[0] ?? null;
-                            }"
+                            accept=".jpg,.jpeg,.png,.webp"
+                            @change="(e: Event) => onArchivoChange('isotipo', e)"
                         />
                     </div>
+                    <InputError :message="LOGO_ERROR.isotipo || isotipoForm.errors.archivo" />
                     <div class="mt-2 flex justify-end gap-2">
                         <Button
                             v-if="props.branding.isotipo_url"
                             variant="outline"
-                            :disabled="isotipoForm.processing"
+                            class="gap-1.5"
+                            :disabled="isotipoForm.processing || eliminandoLogo.isotipo"
                             @click="eliminarLogo('isotipo')"
                         >
-                            <Trash2 class="size-4" />
+                            <Spinner v-if="eliminandoLogo.isotipo" class="size-4" />
+                            <Trash2 v-else class="size-4" />
                             Eliminar
                         </Button>
-                        <Button :disabled="!isotipoForm.archivo || isotipoForm.processing" @click="subirLogo('isotipo')">
-                            <Upload class="size-4" />
+                        <Button :disabled="!isotipoForm.archivo || isotipoForm.processing" class="gap-1.5" @click="subirLogo('isotipo')">
+                            <Spinner v-if="isotipoForm.processing" class="size-4" />
+                            <Upload v-else class="size-4" />
                             {{ isotipoForm.processing ? 'Subiendo…' : 'Guardar isotipo' }}
                         </Button>
                     </div>

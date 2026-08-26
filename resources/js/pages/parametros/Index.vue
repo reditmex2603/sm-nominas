@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 
 interface Parametro { id: number; clave: string; valor: string; descripcion: string | null }
 
@@ -47,7 +50,51 @@ const categoriasEventoRows: { label: string; mediano: ClaveBonoEvento; grande: C
 ];
 
 const guardar = () => {
+    intentado.value = true;
+
+    if (Object.keys(errores.value).length > 0) {
+        return;
+    }
+
     form.put('/parametros', { preserveScroll: true });
+};
+
+// ── Validación cliente (montos ≥ 0, bono 7° día entre 1 y 6) ──────
+const intentado = ref(false);
+
+const CAMPOS_MONTO = [
+    'pago_default_chico', 'pago_default_mediano', 'pago_default_grande',
+    ...categoriasEventoRows.flatMap(r => [r.mediano, r.grande]),
+] as const;
+
+const errores = computed<Record<string, string>>(() => {
+    const e: Record<string, string> = {};
+
+    for (const clave of CAMPOS_MONTO) {
+        const v = Number(form[clave]);
+
+        if (form[clave] === '' || Number.isNaN(v) || v < 0) {
+            e[clave] = 'Debe ser un número mayor o igual a 0.';
+        }
+    }
+
+    const dias = Number(form.dias_bono_septimo);
+
+    if (!Number.isInteger(dias) || dias < 1 || dias > 6) {
+        e.dias_bono_septimo = 'Debe ser un entero entre 1 y 6.';
+    }
+
+    return e;
+});
+
+const msg = (campo: string): string => {
+    const cliente = errores.value[campo];
+
+    if (intentado.value && cliente) {
+        return cliente;
+    }
+
+    return (form.errors as Record<string, string>)[campo] ?? '';
 };
 </script>
 
@@ -66,7 +113,7 @@ const guardar = () => {
             <fieldset class="space-y-4 rounded-xl border p-4">
                 <legend class="text-sm font-medium px-1">Pago por defecto al crear evento</legend>
 
-                <div class="grid grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <div class="space-y-1">
                         <Label>Chico</Label>
                         <Input
@@ -75,9 +122,7 @@ const guardar = () => {
                             step="0.01"
                             min="0"
                         />
-                        <p v-if="form.errors.pago_default_chico" class="text-destructive text-xs">
-                            {{ form.errors.pago_default_chico }}
-                        </p>
+                        <InputError :message="msg('pago_default_chico')" />
                     </div>
                     <div class="space-y-1">
                         <Label>Mediano</Label>
@@ -87,9 +132,7 @@ const guardar = () => {
                             step="0.01"
                             min="0"
                         />
-                        <p v-if="form.errors.pago_default_mediano" class="text-destructive text-xs">
-                            {{ form.errors.pago_default_mediano }}
-                        </p>
+                        <InputError :message="msg('pago_default_mediano')" />
                     </div>
                     <div class="space-y-1">
                         <Label>Grande</Label>
@@ -99,9 +142,7 @@ const guardar = () => {
                             step="0.01"
                             min="0"
                         />
-                        <p v-if="form.errors.pago_default_grande" class="text-destructive text-xs">
-                            {{ form.errors.pago_default_grande }}
-                        </p>
+                        <InputError :message="msg('pago_default_grande')" />
                     </div>
                 </div>
             </fieldset>
@@ -124,9 +165,7 @@ const guardar = () => {
                                 min="0"
                                 class="w-28"
                             />
-                            <p v-if="form.errors[row.mediano]" class="text-destructive text-xs">
-                                {{ form.errors[row.mediano] }}
-                            </p>
+                            <InputError :message="msg(row.mediano)" />
                         </div>
                         <div class="space-y-1">
                             <Input
@@ -136,9 +175,7 @@ const guardar = () => {
                                 min="0"
                                 class="w-28"
                             />
-                            <p v-if="form.errors[row.grande]" class="text-destructive text-xs">
-                                {{ form.errors[row.grande] }}
-                            </p>
+                            <InputError :message="msg(row.grande)" />
                         </div>
                     </template>
                 </div>
@@ -162,14 +199,13 @@ const guardar = () => {
                     <p class="text-muted-foreground text-xs">
                         Valor habitual: 6 (semana completa L–S)
                     </p>
-                    <p v-if="form.errors.dias_bono_septimo" class="text-destructive text-xs">
-                        {{ form.errors.dias_bono_septimo }}
-                    </p>
+                    <InputError :message="msg('dias_bono_septimo')" />
                 </div>
             </fieldset>
 
-            <Button type="submit" :disabled="form.processing">
-                Guardar parámetros
+            <Button type="submit" :disabled="form.processing" class="gap-1.5">
+                <Spinner v-if="form.processing" class="size-4" />
+                {{ form.processing ? 'Guardando…' : 'Guardar parámetros' }}
             </Button>
         </form>
     </div>

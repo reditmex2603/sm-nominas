@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { Pencil, Plus, ShieldCheck, Trash2 } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
+import InputError from '@/components/InputError.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,6 +22,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 import { useConfirm } from '@/composables/useConfirm';
 
 type Rol = 'supervisor' | 'capturista';
@@ -87,11 +89,57 @@ const togglePermiso = (clave: string) => {
         : [...form.permisos, clave];
 };
 
+// ── Validación cliente ─────────────────────────────────────────────
+const intentado = ref(false);
+
+const errores = computed<Record<string, string>>(() => {
+    const e: Record<string, string> = {};
+
+    if (!form.name.trim()) {
+        e.name = 'El nombre es obligatorio.';
+    }
+
+    if (!form.email.trim()) {
+        e.email = 'El correo es obligatorio.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+        e.email = 'Correo electrónico inválido.';
+    }
+
+    if (editingId.value === null && form.password.length < 8) {
+        e.password = 'La contraseña debe tener al menos 8 caracteres.';
+    }
+
+    return e;
+});
+
+const msg = (campo: string): string => {
+    const cliente = errores.value[campo];
+
+    if (intentado.value && cliente) {
+        return cliente;
+    }
+
+    return (form.errors as Record<string, string>)[campo] ?? '';
+};
+
+watch(() => showDialog, (open) => {
+    if (open) {
+        intentado.value = false;
+    }
+});
+
 const guardar = () => {
+    intentado.value = true;
+
+    if (Object.keys(errores.value).length > 0) {
+        return;
+    }
+
     const options = {
         preserveScroll: true,
         onSuccess: () => {
             showDialog.value = false;
+            intentado.value = false;
             form.password = '';
         },
     };
@@ -105,6 +153,8 @@ const guardar = () => {
     form.put(`/parametros/usuarios/${editingId.value}`, options);
 };
 
+const eliminando = ref<number | null>(null);
+
 const eliminar = async (u: Usuario) => {
     const ok = await confirm(`¿Eliminar el usuario "${u.name}"? Se revocará su acceso al sistema.`);
 
@@ -112,7 +162,13 @@ const eliminar = async (u: Usuario) => {
 return;
 }
 
-    router.delete(`/parametros/usuarios/${u.id}`, { preserveScroll: true });
+    eliminando.value = u.id;
+    router.delete(`/parametros/usuarios/${u.id}`, {
+        preserveScroll: true,
+        onFinish: () => {
+ eliminando.value = null; 
+},
+    });
 };
 
 const permisosUsuarios = (u: Usuario) =>
@@ -138,8 +194,8 @@ const permisosUsuarios = (u: Usuario) =>
             </Button>
         </div>
 
-        <!-- Tabla -->
-        <div class="overflow-x-auto rounded-xl border">
+        <!-- Tabla escritorio (≥ lg) -->
+        <div class="hidden overflow-x-auto rounded-xl border lg:block">
             <table class="w-full text-sm">
                 <thead class="bg-muted/50 border-b">
                     <tr>
@@ -156,7 +212,7 @@ const permisosUsuarios = (u: Usuario) =>
                             Sin usuarios registrados.
                         </td>
                     </tr>
-                    <tr v-for="u in props.usuarios" :key="u.id" class="hover:bg-muted/30">
+                    <tr v-for="u in props.usuarios" :key="u.id" class="transition-colors hover:bg-muted/30">
                         <td class="px-4 py-3 font-medium whitespace-nowrap">
                             {{ u.name }}
                             <span
@@ -205,15 +261,79 @@ const permisosUsuarios = (u: Usuario) =>
                                     size="icon"
                                     class="text-destructive"
                                     title="Eliminar"
+                                    :disabled="eliminando === u.id"
                                     @click="eliminar(u)"
                                 >
-                                    <Trash2 class="size-4" />
+                                    <Spinner v-if="eliminando === u.id" class="size-4" />
+                                    <Trash2 v-else class="size-4" />
                                 </Button>
                             </div>
                         </td>
                     </tr>
                 </tbody>
             </table>
+        </div>
+
+        <!-- Cards móvil (< lg) -->
+        <div class="flex flex-col gap-3 lg:hidden">
+            <div v-if="props.usuarios.length === 0" class="text-muted-foreground rounded-xl border border-dashed py-10 text-center text-sm">
+                Sin usuarios registrados.
+            </div>
+
+            <div v-for="u in props.usuarios" :key="u.id" class="rounded-xl border p-4">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                        <p class="truncate font-medium">
+                            {{ u.name }}
+                            <span
+                                v-if="u.rol === 'admin'"
+                                class="ml-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800"
+                            >
+                                <ShieldCheck class="size-3" />
+                                Super admin
+                            </span>
+                        </p>
+                        <p class="text-muted-foreground mt-0.5 truncate text-xs">{{ u.email }}</p>
+                        <p class="mt-0.5 text-xs">
+                            <Badge variant="secondary">{{ rolLabel[u.rol] ?? u.rol }}</Badge>
+                        </p>
+                    </div>
+                    <div v-if="u.rol !== 'admin'" class="flex flex-shrink-0 gap-1">
+                        <Button variant="ghost" size="icon" title="Editar" @click="abrirEdicion(u)">
+                            <Pencil class="size-4" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            class="text-destructive"
+                            title="Eliminar"
+                            :disabled="eliminando === u.id"
+                            @click="eliminar(u)"
+                        >
+                            <Spinner v-if="eliminando === u.id" class="size-4" />
+                            <Trash2 v-else class="size-4" />
+                        </Button>
+                    </div>
+                </div>
+
+                <div class="mt-2 border-t pt-2">
+                    <p v-if="u.rol === 'admin'" class="text-muted-foreground text-xs">
+                        Acceso total (no gestionable)
+                    </p>
+                    <div v-else class="flex flex-wrap gap-1">
+                        <span
+                            v-for="label in permisosUsuarios(u)"
+                            :key="label"
+                            class="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+                        >
+                            {{ label }}
+                        </span>
+                        <span v-if="permisosUsuarios(u).length === 0" class="text-muted-foreground text-xs">
+                            Sin permisos
+                        </span>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Dialog crear/editar -->
@@ -227,13 +347,13 @@ const permisosUsuarios = (u: Usuario) =>
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div class="space-y-1">
                             <Label>Nombre <span class="text-destructive">*</span></Label>
-                            <Input v-model="form.name" required />
-                            <p v-if="form.errors.name" class="text-destructive text-xs">{{ form.errors.name }}</p>
+                            <Input v-model="form.name" maxlength="255" required />
+                            <InputError :message="msg('name')" />
                         </div>
                         <div class="space-y-1">
                             <Label>Correo <span class="text-destructive">*</span></Label>
-                            <Input v-model="form.email" type="email" required />
-                            <p v-if="form.errors.email" class="text-destructive text-xs">{{ form.errors.email }}</p>
+                            <Input v-model="form.email" type="email" maxlength="255" required />
+                            <InputError :message="msg('email')" />
                         </div>
                     </div>
 
@@ -256,12 +376,11 @@ const permisosUsuarios = (u: Usuario) =>
                             <Input
                                 v-model="form.password"
                                 type="password"
+                                autocomplete="new-password"
                                 :required="editingId === null"
                                 :placeholder="editingId === null ? '' : 'Dejar vacío para no cambiar'"
                             />
-                            <p v-if="form.errors.password" class="text-destructive text-xs">
-                                {{ form.errors.password }}
-                            </p>
+                            <InputError :message="msg('password')" />
                         </div>
                     </div>
 
@@ -286,7 +405,10 @@ const permisosUsuarios = (u: Usuario) =>
 
                     <DialogFooter>
                         <Button type="button" variant="outline" @click="showDialog = false">Cancelar</Button>
-                        <Button type="submit" :disabled="form.processing">Guardar</Button>
+                        <Button type="submit" :disabled="form.processing" class="gap-1.5">
+                            <Spinner v-if="form.processing" class="size-4" />
+                            {{ form.processing ? 'Guardando…' : 'Guardar' }}
+                        </Button>
                     </DialogFooter>
                 </form>
             </DialogContent>

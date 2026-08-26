@@ -42,6 +42,8 @@ class ParametroController extends Controller
             ParametroSistema::where('clave', $clave)->update(['valor' => $valor]);
         }
 
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Parámetros guardados correctamente.']);
+
         return back();
     }
 }
