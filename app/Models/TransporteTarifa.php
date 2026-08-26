@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TransporteTarifa extends Model
 {
+    use HasFactory;
+
     protected $table = 'transportes_tarifas';
 
     protected $fillable = ['vehiculo_id', 'distancia_id', 'tarifa'];
