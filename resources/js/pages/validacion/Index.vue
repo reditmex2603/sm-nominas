@@ -25,6 +25,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 import { useConfirm } from '@/composables/useConfirm';
 import { desplazarSemanas, esRangoSemanasCompleto, fmtFecha, semanaBase } from '@/lib/fecha';
 import { fraccionEventoLabel, fraccionEventoModo, fraccionEventoModoOpciones } from '@/lib/fraccionEvento';
@@ -643,6 +644,7 @@ return;
 };
 
 const { confirm } = useConfirm();
+const pagandoNomina = ref(false);
 
 const pagarNomina = async () => {
     if (!desglose.value?.nomina_id) {
@@ -659,10 +661,14 @@ return;
 return;
 }
 
+    pagandoNomina.value = true;
     router.patch(nomina.pagar.url(desglose.value.nomina_id), {}, {
         preserveScroll: true,
         onSuccess: () => {
  calcularNomina(); 
+},
+        onFinish: () => {
+ pagandoNomina.value = false; 
 },
     });
 };
@@ -697,7 +703,10 @@ const abrirAplazar = () => {
     aplazarAbierto.value = true;
 };
 
+const aplazando = ref(false);
+
 const confirmarAplazar = () => {
+    aplazando.value = true;
     router.post(prestamoCuotas.aplazar.url(), {
         cuota_ids: [...plazosSel.value],
         nueva_fecha: nuevaFechaPlazo.value,
@@ -708,6 +717,9 @@ const confirmarAplazar = () => {
             aplazarAbierto.value = false;
             calcularNomina();
         },
+        onFinish: () => {
+ aplazando.value = false; 
+},
     });
 };
 
@@ -2028,18 +2040,22 @@ const setCompensacion = (j: Jornada, activa: boolean) => {
                         <div class="flex justify-end gap-2">
                             <Button
                                 variant="outline"
+                                class="gap-1.5"
                                 :disabled="(desglose.jornadas_sin_validar ?? 0) > 0 || guardandoNomina"
                                 @click="guardarNomina"
                             >
-                                Guardar nómina
+                                <Spinner v-if="guardandoNomina" class="size-4" />
+                                {{ guardandoNomina ? 'Guardando…' : 'Guardar nómina' }}
                             </Button>
                             <Button
                                 v-if="desglose.nomina_id"
                                 variant="default"
-                                class="bg-emerald-600 hover:bg-emerald-700"
+                                class="gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+                                :disabled="pagandoNomina"
                                 @click="pagarNomina"
                             >
-                                Marcar como pagado
+                                <Spinner v-if="pagandoNomina" class="size-4" />
+                                {{ pagandoNomina ? 'Pagando…' : 'Marcar como pagado' }}
                             </Button>
                         </div>
                     </template>
@@ -2086,7 +2102,10 @@ const setCompensacion = (j: Jornada, activa: boolean) => {
             </div>
             <DialogFooter>
                 <Button type="button" variant="outline" @click="aplazarAbierto = false">Cancelar</Button>
-                <Button :disabled="!nuevaFechaPlazo" @click="confirmarAplazar">Confirmar</Button>
+                <Button :disabled="!nuevaFechaPlazo || aplazando" class="gap-1.5" @click="confirmarAplazar">
+                    <Spinner v-if="aplazando" class="size-4" />
+                    {{ aplazando ? 'Aplazando…' : 'Confirmar' }}
+                </Button>
             </DialogFooter>
         </DialogContent>
     </Dialog>

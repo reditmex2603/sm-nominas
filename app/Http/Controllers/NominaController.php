@@ -15,6 +15,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Inertia\Inertia;
 
 class NominaController extends Controller
 {
@@ -181,7 +182,9 @@ class NominaController extends Controller
             PrestamoCuota::whereIn('id', $cuotaIds)->update(['historico_nomina_id' => $nomina->id]);
         }
 
-        return back()->with('success', 'Nómina guardada como PENDIENTE.');
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Nómina guardada como PENDIENTE.']);
+
+        return back();
     }
 
     /** Eventos con asistencia registrada por el colaborador y sus registros editables, agrupados por evento. */
@@ -242,7 +245,9 @@ class NominaController extends Controller
         PrestamoCuota::where('historico_nomina_id', $nomina->id)
             ->update(['estado' => 'PAGADA', 'fecha_pago' => now()->toDateString()]);
 
-        return back()->with('success', 'Nómina marcada como PAGADO.');
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Nómina marcada como PAGADO.']);
+
+        return back();
     }
 
     /** Elimina un cálculo PENDIENTE para poder recalcularlo desde cero (corrección de errores). */
@@ -257,7 +262,9 @@ class NominaController extends Controller
         // siguiente cálculo (nunca llegó a estado PAGADA porque eso solo ocurre en pagar()).
         $nomina->delete();
 
-        return back()->with('success', 'Nómina eliminada. Ya puedes volver a calcularla en el Panel de Validación.');
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Nómina eliminada. Ya puedes volver a calcularla en el Panel de Validación.']);
+
+        return back();
     }
 
     private function contarSinValidar(string $tipo, int $colaboradorId, ?Carbon $ini, ?Carbon $fin, ?Evento $evento): int

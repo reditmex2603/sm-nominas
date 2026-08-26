@@ -14,6 +14,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 import { useConfirm } from '@/composables/useConfirm';
 import { fmtFecha } from '@/lib/fecha';
 import type {TipoPago} from '@/lib/tipoPago';
@@ -210,6 +211,7 @@ const resumenCondBase  = computed(() => resumen(nominasCondBaseFiltradas.value))
 
 // ── Pagar nómina ──────────────────────────────────────────────────
 const { confirm } = useConfirm();
+const pagando = ref(new Set<number>());
 
 const pagar = async (id: number) => {
     const ok = await confirm('¿Marcar esta nómina como PAGADA? Esta acción es irreversible.', {
@@ -218,9 +220,19 @@ const pagar = async (id: number) => {
         variant: 'default',
     });
 
-    if (ok) {
-router.patch(nomina.pagar.url(id), {}, { preserveScroll: true });
+    if (!ok) {
+return;
 }
+
+    pagando.value = new Set(pagando.value).add(id);
+    router.patch(nomina.pagar.url(id), {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            const next = new Set(pagando.value);
+            next.delete(id);
+            pagando.value = next;
+        },
+    });
 };
 
 // ── Eliminar nómina (para recalcular tras un error) ────────────────
@@ -607,18 +619,21 @@ return props.nominas_conductor_base.length;
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                class="text-xs"
+                                                class="gap-1 text-xs"
+                                                :disabled="pagando.has(n.id)"
                                                 @click.stop="pagar(n.id)"
                                             >
+                                                <Spinner v-if="pagando.has(n.id)" class="size-3" />
                                                 Marcar pagado
                                             </Button>
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                class="text-xs text-destructive hover:text-destructive"
+                                                class="gap-1 text-xs text-destructive hover:text-destructive"
                                                 :disabled="eliminando.has(n.id)"
                                                 @click.stop="eliminar(n.id)"
                                             >
+                                                <Spinner v-if="eliminando.has(n.id)" class="size-3" />
                                                 Eliminar
                                             </Button>
                                         </template>
@@ -881,18 +896,21 @@ return props.nominas_conductor_base.length;
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                class="text-xs"
+                                                class="gap-1 text-xs"
+                                                :disabled="pagando.has(n.id)"
                                                 @click.stop="pagar(n.id)"
                                             >
+                                                <Spinner v-if="pagando.has(n.id)" class="size-3" />
                                                 Marcar pagado
                                             </Button>
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                class="text-xs text-destructive hover:text-destructive"
+                                                class="gap-1 text-xs text-destructive hover:text-destructive"
                                                 :disabled="eliminando.has(n.id)"
                                                 @click.stop="eliminar(n.id)"
                                             >
+                                                <Spinner v-if="eliminando.has(n.id)" class="size-3" />
                                                 Eliminar
                                             </Button>
                                         </template>
@@ -1018,18 +1036,21 @@ return props.nominas_conductor_base.length;
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                class="text-xs"
+                                                class="gap-1 text-xs"
+                                                :disabled="pagando.has(n.id)"
                                                 @click.stop="pagar(n.id)"
                                             >
+                                                <Spinner v-if="pagando.has(n.id)" class="size-3" />
                                                 Marcar pagado
                                             </Button>
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                class="text-xs text-destructive hover:text-destructive"
+                                                class="gap-1 text-xs text-destructive hover:text-destructive"
                                                 :disabled="eliminando.has(n.id)"
                                                 @click.stop="eliminar(n.id)"
                                             >
+                                                <Spinner v-if="eliminando.has(n.id)" class="size-3" />
                                                 Eliminar
                                             </Button>
                                         </template>
