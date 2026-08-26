@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
 import { Plus } from '@lucide/vue';
+import { computed, ref, watch } from 'vue';
+import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -18,9 +20,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import * as serviciosProfesionales from '@/routes/servicios-profesionales';
-import { ref } from 'vue';
+import { Spinner } from '@/components/ui/spinner';
 import { fmtFecha } from '@/lib/fecha';
+import * as serviciosProfesionales from '@/routes/servicios-profesionales';
 
 type TipoServicio = 'RIGGER' | 'OPERADOR_AUDIO' | 'OPERADOR_VIDEO' | 'OPERADOR_LUZ' | 'OTRO';
 
@@ -39,7 +41,7 @@ interface Servicio {
     evento: EventoRef | null;
 }
 
-const props = defineProps<{
+defineProps<{
     servicios: Servicio[];
     eventos: EventoRef[];
 }>();
@@ -76,10 +78,57 @@ const form = useForm({
     autoriza:   '',
 });
 
+const intentado = ref(false);
+
+const erroresForm = computed<Record<string, string>>(() => {
+    const e: Record<string, string> = {};
+
+    if (!form.nombre.trim()) {
+        e.nombre = 'El nombre es obligatorio.';
+    }
+
+    if (!form.concepto.trim()) {
+        e.concepto = 'El concepto es obligatorio.';
+    }
+
+    if (!form.monto) {
+        e.monto = 'El monto es obligatorio.';
+    }
+
+    if (!form.fecha) {
+        e.fecha = 'La fecha es obligatoria.';
+    }
+
+    return e;
+});
+
+const msg = (campo: string): string => {
+    const cliente = erroresForm.value[campo];
+
+    if (intentado.value && cliente) {
+        return cliente;
+    }
+
+    return (form.errors as Record<string, string>)[campo] ?? '';
+};
+
+watch(() => showForm, (open) => {
+    if (open) {
+        intentado.value = false;
+    }
+});
+
 const submit = () => {
+    intentado.value = true;
+
+    if (Object.keys(erroresForm.value).length > 0) {
+        return;
+    }
+
     form.post(serviciosProfesionales.store.url(), {
         onSuccess: () => {
             showForm.value = false;
+            intentado.value = false;
             form.reset();
             form.fecha = today;
             form.tipo = 'RIGGER';
@@ -108,21 +157,21 @@ const submit = () => {
         </div>
 
         <Dialog :open="showForm" @update:open="showForm = $event">
-            <DialogContent class="max-w-md">
+            <DialogContent class="w-full max-w-md">
                 <DialogHeader>
                     <DialogTitle>Registrar servicio profesional</DialogTitle>
                 </DialogHeader>
 
                 <form class="grid gap-4" @submit.prevent="submit">
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div class="space-y-1">
                             <Label>Nombre <span class="text-destructive">*</span></Label>
-                            <Input v-model="form.nombre" required />
-                            <p v-if="form.errors.nombre" class="text-destructive text-xs">{{ form.errors.nombre }}</p>
+                            <Input v-model="form.nombre" maxlength="255" required />
+                            <InputError :message="msg('nombre')" />
                         </div>
                         <div class="space-y-1">
                             <Label>Apellidos</Label>
-                            <Input v-model="form.apellidos" />
+                            <Input v-model="form.apellidos" maxlength="255" />
                         </div>
                     </div>
 
@@ -155,37 +204,41 @@ const submit = () => {
 
                     <div class="space-y-1">
                         <Label>Concepto <span class="text-destructive">*</span></Label>
-                        <Input v-model="form.concepto" placeholder="Descripción del servicio" required />
-                        <p v-if="form.errors.concepto" class="text-destructive text-xs">{{ form.errors.concepto }}</p>
+                        <Input v-model="form.concepto" placeholder="Descripción del servicio" maxlength="500" required />
+                        <InputError :message="msg('concepto')" />
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div class="space-y-1">
                             <Label>Monto <span class="text-destructive">*</span></Label>
-                            <Input v-model="form.monto" type="number" step="0.01" min="0" required />
-                            <p v-if="form.errors.monto" class="text-destructive text-xs">{{ form.errors.monto }}</p>
+                            <Input v-model="form.monto" type="number" step="0.01" min="0" inputmode="decimal" required />
+                            <InputError :message="msg('monto')" />
                         </div>
                         <div class="space-y-1">
                             <Label>Fecha <span class="text-destructive">*</span></Label>
                             <Input v-model="form.fecha" type="date" required />
+                            <InputError :message="msg('fecha')" />
                         </div>
                     </div>
 
                     <div class="space-y-1">
                         <Label>Autoriza</Label>
-                        <Input v-model="form.autoriza" placeholder="Nombre de quien autoriza" />
+                        <Input v-model="form.autoriza" placeholder="Nombre de quien autoriza" maxlength="255" />
                     </div>
 
                     <DialogFooter>
                         <Button type="button" variant="outline" @click="showForm = false">Cancelar</Button>
-                        <Button type="submit" :disabled="form.processing">Registrar</Button>
+                        <Button type="submit" :disabled="form.processing" class="gap-1.5">
+                            <Spinner v-if="form.processing" class="size-4" />
+                            {{ form.processing ? 'Registrando…' : 'Registrar' }}
+                        </Button>
                     </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>
 
-        <!-- Tabla (solo lectura) -->
-        <div class="overflow-x-auto rounded-xl border">
+        <!-- Tabla (solo lectura) — escritorio -->
+        <div class="hidden overflow-x-auto rounded-xl border lg:block">
             <table class="w-full text-sm">
                 <thead class="bg-muted/50 border-b">
                     <tr>
@@ -204,7 +257,7 @@ const submit = () => {
                             Sin servicios profesionales registrados.
                         </td>
                     </tr>
-                    <tr v-for="s in servicios" :key="s.id" class="hover:bg-muted/30">
+                    <tr v-for="s in servicios" :key="s.id" class="transition-colors hover:bg-muted/30">
                         <td class="px-4 py-3 whitespace-nowrap tabular-nums">{{ fmtFecha(s.fecha) }}</td>
                         <td class="px-4 py-3 whitespace-nowrap font-medium">
                             {{ s.apellidos ? `${s.apellidos}, ` : '' }}{{ s.nombre }}
@@ -228,6 +281,45 @@ const submit = () => {
                     </tr>
                 </tbody>
             </table>
+        </div>
+
+        <!-- Cards móvil (< lg) -->
+        <div class="flex flex-col gap-3 lg:hidden">
+            <div v-if="servicios.length === 0" class="text-muted-foreground rounded-xl border border-dashed py-10 text-center text-sm">
+                Sin servicios profesionales registrados.
+            </div>
+
+            <div v-for="s in servicios" :key="s.id" class="rounded-xl border p-4">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                        <p class="truncate font-medium">{{ s.apellidos ? `${s.apellidos}, ` : '' }}{{ s.nombre }}</p>
+                        <p class="text-muted-foreground mt-0.5 text-xs tabular-nums">{{ fmtFecha(s.fecha) }} · {{ s.evento?.nombre ?? 'Sin evento' }}</p>
+                    </div>
+                    <span
+                        class="flex-shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium"
+                        :class="tipoBadgeClass[s.tipo]"
+                    >
+                        {{ tipoLabel(s.tipo) }}
+                    </span>
+                </div>
+
+                <dl class="mt-3 space-y-1.5 text-sm">
+                    <div class="flex items-start justify-between gap-3">
+                        <dt class="text-muted-foreground text-xs">Concepto</dt>
+                        <dd class="text-right">{{ s.concepto }}</dd>
+                    </div>
+                    <div class="flex items-center justify-between gap-3">
+                        <dt class="text-muted-foreground text-xs">Autoriza</dt>
+                        <dd class="text-right">{{ s.autoriza ?? '—' }}</dd>
+                    </div>
+                    <div class="flex items-center justify-between border-t pt-2">
+                        <dt class="text-muted-foreground text-xs">Monto</dt>
+                        <dd class="font-medium tabular-nums">
+                            ${{ parseFloat(s.monto).toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}
+                        </dd>
+                    </div>
+                </dl>
+            </div>
         </div>
     </div>
 </template>

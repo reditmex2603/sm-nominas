@@ -36,6 +36,8 @@ class ServicioProfesionalController extends Controller
 
         ServicioProfesional::create($validated);
 
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Servicio profesional registrado correctamente.']);
+
         return back();
     }
 }

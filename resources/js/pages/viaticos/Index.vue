@@ -3,6 +3,7 @@ import { Head, router, useForm } from '@inertiajs/vue3';
 import { Plus, Save } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
+import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -20,6 +21,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 import { fmtFecha } from '@/lib/fecha';
 import * as viaticosRoutes from '@/routes/viaticos';
 
@@ -126,14 +128,65 @@ watch([() => form.evento_id, modo], () => {
     form.colaborador_id = '';
 });
 
-const formInvalido = computed(() =>
-    modo.value === 'colaborador' ? !form.colaborador_id : !form.nombre,
-);
+const formIntentado = ref(false);
+
+const erroresForm = computed<Record<string, string>>(() => {
+    const e: Record<string, string> = {};
+
+    if (!form.evento_id) {
+        e.evento_id = 'Selecciona un evento.';
+    }
+
+    if (modo.value === 'colaborador' && !form.colaborador_id) {
+        e.colaborador_id = 'Selecciona un colaborador.';
+    }
+
+    if (modo.value === 'general' && !form.nombre.trim()) {
+        e.nombre = 'El nombre es obligatorio.';
+    }
+
+    if (!form.concepto.trim()) {
+        e.concepto = 'El concepto es obligatorio.';
+    }
+
+    if (!form.monto) {
+        e.monto = 'El monto es obligatorio.';
+    }
+
+    if (!form.fecha) {
+        e.fecha = 'La fecha es obligatoria.';
+    }
+
+    return e;
+});
+
+const msg = (campo: string): string => {
+    const cliente = erroresForm.value[campo];
+
+    if (formIntentado.value && cliente) {
+        return cliente;
+    }
+
+    return (form.errors as Record<string, string>)[campo] ?? '';
+};
+
+watch(() => showForm, (open) => {
+    if (open) {
+        formIntentado.value = false;
+    }
+});
 
 const submit = () => {
+    formIntentado.value = true;
+
+    if (Object.keys(erroresForm.value).length > 0) {
+        return;
+    }
+
     form.post(viaticosRoutes.store.url(), {
         onSuccess: () => {
             showForm.value = false;
+            formIntentado.value = false;
             form.reset();
             form.fecha = today;
             form.tipo = 'TRANSPORTE';
@@ -215,6 +268,8 @@ const construirMatriz = () => {
 
 watch(matrizEventoId, construirMatriz);
 
+const guardandoMatriz = ref(false);
+
 const guardarMatriz = () => {
     const filas = matrizFilas.value.map((f) => ({
         colaborador_id: f.colaborador_id,
@@ -225,13 +280,16 @@ const guardarMatriz = () => {
         ),
     }));
 
+    guardandoMatriz.value = true;
     router.post('/viaticos/matriz', {
         evento_id: matrizEventoId.value,
         def_diario: defDiario.value,
         filas,
     }, {
         preserveScroll: true,
-        onSuccess: () => toast.success('Matriz de viáticos actualizada.'),
+        onFinish: () => {
+ guardandoMatriz.value = false; 
+},
         onError: (errors) => toast.error(Object.values(errors).join(' ')),
     });
 };
@@ -287,11 +345,13 @@ const guardarMatriz = () => {
                 </div>
 
                 <Button
-                    :disabled="!matrizEventoId || matrizFilas.length === 0"
+                    class="gap-1.5"
+                    :disabled="!matrizEventoId || matrizFilas.length === 0 || guardandoMatriz"
                     @click="guardarMatriz"
                 >
-                    <Save class="size-4" />
-                    Guardar matriz
+                    <Spinner v-if="guardandoMatriz" class="size-4" />
+                    <Save v-else class="size-4" />
+                    {{ guardandoMatriz ? 'Guardando…' : 'Guardar matriz' }}
                 </Button>
             </div>
 
@@ -371,7 +431,7 @@ const guardarMatriz = () => {
                                 </SelectItem>
                             </SelectContent>
                         </Select>
-                        <p v-if="form.errors.evento_id" class="text-destructive text-xs">{{ form.errors.evento_id }}</p>
+                        <InputError :message="msg('evento_id')" />
                     </div>
 
                     <div class="space-y-1">
@@ -412,20 +472,20 @@ const guardarMatriz = () => {
                             <p v-if="form.evento_id && colaboradoresDelEvento.length === 0" class="text-muted-foreground text-xs">
                                 Este evento no tiene colaboradores asignados. Asígnalos primero en Eventos.
                             </p>
-                            <p v-if="form.errors.colaborador_id" class="text-destructive text-xs">{{ form.errors.colaborador_id }}</p>
+                            <InputError :message="msg('colaborador_id')" />
                         </div>
                     </template>
 
                     <template v-else>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div class="space-y-1">
                                 <Label>Nombre <span class="text-destructive">*</span></Label>
-                                <Input v-model="form.nombre" required />
-                                <p v-if="form.errors.nombre" class="text-destructive text-xs">{{ form.errors.nombre }}</p>
+                                <Input v-model="form.nombre" maxlength="255" required />
+                                <InputError :message="msg('nombre')" />
                             </div>
                             <div class="space-y-1">
                                 <Label>Apellidos</Label>
-                                <Input v-model="form.apellidos" />
+                                <Input v-model="form.apellidos" maxlength="255" />
                             </div>
                         </div>
                     </template>
@@ -444,37 +504,41 @@ const guardarMatriz = () => {
 
                     <div class="space-y-1">
                         <Label>Concepto <span class="text-destructive">*</span></Label>
-                        <Input v-model="form.concepto" placeholder="Descripción del gasto" required />
-                        <p v-if="form.errors.concepto" class="text-destructive text-xs">{{ form.errors.concepto }}</p>
+                        <Input v-model="form.concepto" placeholder="Descripción del gasto" maxlength="500" required />
+                        <InputError :message="msg('concepto')" />
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div class="space-y-1">
                             <Label>Monto <span class="text-destructive">*</span></Label>
-                            <Input v-model="form.monto" type="number" step="0.01" min="0" required />
-                            <p v-if="form.errors.monto" class="text-destructive text-xs">{{ form.errors.monto }}</p>
+                            <Input v-model="form.monto" type="number" step="0.01" min="0" inputmode="decimal" required />
+                            <InputError :message="msg('monto')" />
                         </div>
                         <div class="space-y-1">
                             <Label>Fecha <span class="text-destructive">*</span></Label>
                             <Input v-model="form.fecha" type="date" required />
+                            <InputError :message="msg('fecha')" />
                         </div>
                     </div>
 
                     <div class="space-y-1">
                         <Label>Autoriza</Label>
-                        <Input v-model="form.autoriza" placeholder="Nombre de quien autoriza" />
+                        <Input v-model="form.autoriza" placeholder="Nombre de quien autoriza" maxlength="255" />
                     </div>
 
                     <DialogFooter>
                         <Button type="button" variant="outline" @click="showForm = false">Cancelar</Button>
-                        <Button type="submit" :disabled="form.processing || formInvalido || !form.evento_id">Registrar</Button>
+                        <Button type="submit" :disabled="form.processing" class="gap-1.5">
+                            <Spinner v-if="form.processing" class="size-4" />
+                            {{ form.processing ? 'Registrando…' : 'Registrar' }}
+                        </Button>
                     </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>
 
-        <!-- Tabla (solo lectura) -->
-        <div class="overflow-x-auto rounded-xl border">
+        <!-- Tabla (solo lectura) — escritorio -->
+        <div class="hidden overflow-x-auto rounded-xl border lg:block">
             <table class="w-full text-sm">
                 <thead class="bg-muted/50 border-b">
                     <tr>
@@ -493,7 +557,7 @@ const guardarMatriz = () => {
                             Sin viáticos registrados.
                         </td>
                     </tr>
-                    <tr v-for="v in props.viaticos" :key="v.id" class="hover:bg-muted/30">
+                    <tr v-for="v in props.viaticos" :key="v.id" class="transition-colors hover:bg-muted/30">
                         <td class="px-4 py-3 whitespace-nowrap tabular-nums">{{ fmtFecha(v.fecha) }}</td>
                         <td class="px-4 py-3 whitespace-nowrap font-medium">
                             {{ nombreDisplay(v) }}
@@ -518,6 +582,45 @@ const guardarMatriz = () => {
                     </tr>
                 </tbody>
             </table>
+        </div>
+
+        <!-- Cards móvil (< lg) -->
+        <div class="flex flex-col gap-3 lg:hidden">
+            <div v-if="props.viaticos.length === 0" class="text-muted-foreground rounded-xl border border-dashed py-10 text-center text-sm">
+                Sin viáticos registrados.
+            </div>
+
+            <div v-for="v in props.viaticos" :key="v.id" class="rounded-xl border p-4">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                        <p class="truncate font-medium">{{ nombreDisplay(v) }}</p>
+                        <p class="text-muted-foreground mt-0.5 text-xs tabular-nums">{{ fmtFecha(v.fecha) }} · {{ v.evento.nombre }}</p>
+                    </div>
+                    <span
+                        class="flex-shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium"
+                        :class="tipoBadgeClass[v.tipo]"
+                    >
+                        {{ tipoLabel(v.tipo) }}
+                    </span>
+                </div>
+
+                <dl class="mt-3 space-y-1.5 text-sm">
+                    <div class="flex items-start justify-between gap-3">
+                        <dt class="text-muted-foreground text-xs">Concepto</dt>
+                        <dd class="text-right">{{ v.concepto }}</dd>
+                    </div>
+                    <div class="flex items-center justify-between gap-3">
+                        <dt class="text-muted-foreground text-xs">Autoriza</dt>
+                        <dd class="text-right">{{ v.autoriza ?? '—' }}</dd>
+                    </div>
+                    <div class="flex items-center justify-between border-t pt-2">
+                        <dt class="text-muted-foreground text-xs">Monto</dt>
+                        <dd class="font-medium tabular-nums">
+                            ${{ parseFloat(v.monto).toLocaleString('es-MX', { minimumFractionDigits: 2 }) }}
+                        </dd>
+                    </div>
+                </dl>
+            </div>
         </div>
     </div>
 </template>

@@ -86,6 +86,8 @@ class ViaticoController extends Controller
             }
         });
 
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Matriz de viáticos actualizada.']);
+
         return back();
     }
 
@@ -115,6 +117,8 @@ class ViaticoController extends Controller
         }
 
         Viatico::create($validated);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Viático registrado correctamente.']);
 
         return back();
     }
