@@ -10,6 +10,7 @@ import ManageTwoFactor from '@/components/ManageTwoFactor.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import { edit } from '@/routes/security';
 
 type Props = {
@@ -99,8 +100,10 @@ defineOptions({
                 <Button
                     :disabled="processing"
                     data-test="update-password-button"
+                    class="gap-1.5"
                 >
-                    Guardar
+                    <Spinner v-if="processing" class="size-4" />
+                    {{ processing ? 'Guardando…' : 'Guardar' }}
                 </Button>
             </div>
         </Form>

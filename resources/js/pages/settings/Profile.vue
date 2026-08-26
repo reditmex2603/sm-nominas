@@ -8,6 +8,7 @@ import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import { edit } from '@/routes/profile';
 import { send } from '@/routes/verification';
 
@@ -93,8 +94,9 @@ const user = computed(() => page.props.auth.user);
             </div>
 
             <div class="flex items-center gap-4">
-                <Button :disabled="processing" data-test="update-profile-button"
-                    >Guardar</Button
+                <Button :disabled="processing" data-test="update-profile-button" class="gap-1.5"
+                    ><Spinner v-if="processing" class="size-4" />
+                    {{ processing ? 'Guardando…' : 'Guardar' }}</Button
                 >
             </div>
         </Form>
