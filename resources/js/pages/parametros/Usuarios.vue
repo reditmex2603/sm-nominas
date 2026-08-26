@@ -338,7 +338,7 @@ const permisosUsuarios = (u: Usuario) =>
 
         <!-- Dialog crear/editar -->
         <Dialog :open="showDialog" @update:open="showDialog = $event">
-            <DialogContent class="max-w-2xl">
+            <DialogContent class="w-full max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
                 <DialogHeader>
                     <DialogTitle>{{ dialogTitle }}</DialogTitle>
                 </DialogHeader>
