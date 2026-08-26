@@ -24,6 +24,7 @@ class HistoricoNomina extends Model
         'compensaciones',
         'comentario',
         'anticipos',
+        'prestamos',
         'total_final',
         'estado',
         'evento_id',
