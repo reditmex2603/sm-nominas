@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use App\Casts\EncryptedOrDefault;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ColaboradorPerfil extends Model
 {
+    use HasFactory;
+
     protected $table = 'colaborador_perfiles';
 
     protected $fillable = [
@@ -45,5 +49,13 @@ class ColaboradorPerfil extends Model
     public function colaborador(): BelongsTo
     {
         return $this->belongsTo(Colaborador::class)->withTrashed();
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'clave_interbancaria' => EncryptedOrDefault::class,
+            'numero_seguro_social' => EncryptedOrDefault::class,
+        ];
     }
 }
