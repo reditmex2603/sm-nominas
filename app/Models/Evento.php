@@ -11,6 +11,7 @@ use Illuminate\Support\Collection;
 class Evento extends Model
 {
     use HasFactory;
+
     protected $fillable = [
         'nombre',
         'lugar',

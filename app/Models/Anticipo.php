@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Anticipo extends Model
 {
     use HasFactory;
+
     protected $fillable = [
         'colaborador_id',
         'concepto',

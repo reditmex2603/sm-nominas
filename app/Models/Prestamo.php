@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Prestamo extends Model
 {
     use HasFactory;
+
     protected $fillable = [
         'colaborador_id',
         'monto_total',

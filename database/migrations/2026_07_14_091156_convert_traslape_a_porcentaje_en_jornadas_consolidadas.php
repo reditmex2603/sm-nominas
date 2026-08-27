@@ -17,10 +17,10 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Ampliar el enum temporalmente: conserva los valores viejos mientras se migran los datos.
-        DB::statement("ALTER TABLE jornadas_consolidadas MODIFY COLUMN tipo_pago ENUM(
+        $this->alterarTipoPago([
             'JORNADA_COMPLETA', 'JORNADA_COMPLETA + EVENTO', 'TRASLAPE_40', 'TRASLAPE_50',
-            'TRASLAPE', 'SIN_PAGO', 'ERROR_EVENTO'
-        ) NOT NULL DEFAULT 'SIN_PAGO'");
+            'TRASLAPE', 'SIN_PAGO', 'ERROR_EVENTO',
+        ]);
 
         Schema::table('jornadas_consolidadas', function (Blueprint $table) {
             $table->unsignedTinyInteger('traslape_pct')->nullable()->after('tipo_pago');
@@ -32,24 +32,24 @@ return new class extends Migration
             ->update(['tipo_pago' => 'TRASLAPE', 'traslape_pct' => 50]);
 
         $this->migrarFraccionesEvento(fn ($valor) => match ($valor) {
-            'COMPLETO'     => 100,
-            'TRASLAPE_50'  => 50,
-            'TRASLAPE_40'  => 40,
-            default        => is_numeric($valor) ? (int) $valor : 100,
+            'COMPLETO' => 100,
+            'TRASLAPE_50' => 50,
+            'TRASLAPE_40' => 40,
+            default => is_numeric($valor) ? (int) $valor : 100,
         });
 
         // 2. Angostar el enum a la lista final, ya sin TRASLAPE_40/TRASLAPE_50.
-        DB::statement("ALTER TABLE jornadas_consolidadas MODIFY COLUMN tipo_pago ENUM(
-            'JORNADA_COMPLETA', 'JORNADA_COMPLETA + EVENTO', 'TRASLAPE', 'SIN_PAGO', 'ERROR_EVENTO'
-        ) NOT NULL DEFAULT 'SIN_PAGO'");
+        $this->alterarTipoPago([
+            'JORNADA_COMPLETA', 'JORNADA_COMPLETA + EVENTO', 'TRASLAPE', 'SIN_PAGO', 'ERROR_EVENTO',
+        ]);
     }
 
     public function down(): void
     {
-        DB::statement("ALTER TABLE jornadas_consolidadas MODIFY COLUMN tipo_pago ENUM(
+        $this->alterarTipoPago([
             'JORNADA_COMPLETA', 'JORNADA_COMPLETA + EVENTO', 'TRASLAPE_40', 'TRASLAPE_50',
-            'TRASLAPE', 'SIN_PAGO', 'ERROR_EVENTO'
-        ) NOT NULL DEFAULT 'SIN_PAGO'");
+            'TRASLAPE', 'SIN_PAGO', 'ERROR_EVENTO',
+        ]);
 
         DB::table('jornadas_consolidadas')->where('tipo_pago', 'TRASLAPE')
             ->where('traslape_pct', '<=', 44)->update(['tipo_pago' => 'TRASLAPE_40']);
@@ -58,17 +58,31 @@ return new class extends Migration
 
         $this->migrarFraccionesEvento(fn ($pct) => $pct >= 100 ? 'COMPLETO' : ($pct <= 44 ? 'TRASLAPE_40' : 'TRASLAPE_50'));
 
-        DB::statement("ALTER TABLE jornadas_consolidadas MODIFY COLUMN tipo_pago ENUM(
+        $this->alterarTipoPago([
             'JORNADA_COMPLETA', 'JORNADA_COMPLETA + EVENTO', 'TRASLAPE_40', 'TRASLAPE_50',
-            'SIN_PAGO', 'ERROR_EVENTO'
-        ) NOT NULL DEFAULT 'SIN_PAGO'");
+            'SIN_PAGO', 'ERROR_EVENTO',
+        ]);
 
         Schema::table('jornadas_consolidadas', function (Blueprint $table) {
             $table->dropColumn('traslape_pct');
         });
     }
 
-    private function migrarFraccionesEvento(\Closure $convertir): void
+    private function alterarTipoPago(array $valores): void
+    {
+        if (DB::getDriverName() === 'sqlite') {
+            Schema::table('jornadas_consolidadas', function (Blueprint $table) use ($valores) {
+                $table->enum('tipo_pago', $valores)->default('SIN_PAGO')->change();
+            });
+
+            return;
+        }
+
+        $lista = implode(',', array_map(fn ($v) => "'{$v}'", $valores));
+        DB::statement("ALTER TABLE jornadas_consolidadas MODIFY COLUMN tipo_pago ENUM({$lista}) NOT NULL DEFAULT 'SIN_PAGO'");
+    }
+
+    private function migrarFraccionesEvento(Closure $convertir): void
     {
         DB::table('jornadas_consolidadas')
             ->whereNotNull('fracciones_evento')
@@ -77,7 +91,7 @@ return new class extends Migration
                 foreach ($rows as $row) {
                     $fracciones = json_decode($row->fracciones_evento, true);
 
-                    if (!is_array($fracciones) || empty($fracciones)) {
+                    if (! is_array($fracciones) || empty($fracciones)) {
                         continue;
                     }
 
