@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Date;
@@ -42,6 +43,15 @@ class AppServiceProvider extends ServiceProvider
         );
 
         $this->hardenProductionDebug();
+
+        // Eloquent estricto fuera de producción: detección temprana de N+1, atributos
+        // descartados silenciosamente y accesos a atributos inexistentes. En pruebas,
+        // estas excepciones revelan bugs reales (p. ej. fillable incompleto).
+        if (! app()->isProduction()) {
+            Model::preventLazyLoading();
+            Model::preventSilentlyDiscardingAttributes();
+            Model::preventAccessingMissingAttributes();
+        }
 
         Password::defaults(fn (): ?Password => app()->isProduction()
             ? Password::min(12)

@@ -58,6 +58,7 @@ class SecurityHeaders
 
                 if ($esArchivo && $directive === 'frame-ancestors') {
                     $policies[] = trim($directive)." 'self'";
+
                     continue;
                 }
 
