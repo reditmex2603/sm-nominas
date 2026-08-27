@@ -39,13 +39,15 @@ return [
 
     'csp' => [
         'enabled' => (bool) env('SECURITY_CSP_ENABLED', false),
+        'nonce' => true,
 
         /*
         | La aplicación es Inertia + Vite y usa estilos/scripts inline propios de
-        | Vite. Por eso 'unsafe-inline' en script/style. No permitir object-src ni
-        | conexiones a terceros salvo las declaradas.
-        | Nota para endurecer: mover scripts inline y quitar 'unsafe-inline'
-        | (requiere colas de trabajo Vite y re-generación de assets).
+        | Vite. Cuando `nonce` está activo y CSP habilitado, 'unsafe-inline' se
+        | reemplaza automáticamente por el nonce generado por Vite::useCspNonce()
+        | en cada petición. En producción con SSR el nonce no se propaga al
+        | contenido renderizado por el servidor Node (hydration scripts), por lo
+        | que CSP debe probarse exhaustivamente antes de activar en SSR.
         */
         'default-src' => "'self'",
         'script-src' => "'self' 'unsafe-inline'",

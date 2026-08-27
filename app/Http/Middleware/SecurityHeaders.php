@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Vite;
 use Symfony\Component\HttpFoundation\Response;
 
 class SecurityHeaders
@@ -20,12 +21,12 @@ class SecurityHeaders
             return redirect()->secure($request->getRequestUri());
         }
 
+        // Generar nonce para que la plantilla Blade lo use en atributos nonce de
+        // <script>, <style> y @vite(). CSP determina si las cabeceras lo emiten.
+        Vite::useCspNonce();
+
         $response = $next($request);
 
-        // Los archivos binarios embebidos en <embed>/<img> (PDF, imágenes) no son páginas
-        // HTML vulnerables a clickjacking. Aplicarles X-Frame-Options/DENY o frame-ancestors
-        // hace que el navegador NO renderice estos archivos dentro del documento, por lo que
-        // se omiten esas cabeceras para respuestas de archivos, conservándolas en el HTML.
         $esArchivo = $this->esRespuestaDeArchivo($response);
 
         foreach (config('security.headers', []) as $header => $value) {
@@ -45,21 +46,22 @@ class SecurityHeaders
         }
 
         if (config('security.csp.enabled')) {
+            $nonce = Vite::cspNonce();
             $policies = [];
 
             foreach (config('security.csp') as $directive => $value) {
-                if ($directive === 'enabled') {
+                if (in_array($directive, ['enabled', 'nonce'], true)) {
                     continue;
                 }
 
+                $valorFinal = str_replace("'unsafe-inline'", $nonce ? "'nonce-{$nonce}'" : "'unsafe-inline'", $value);
+
                 if ($esArchivo && $directive === 'frame-ancestors') {
-                    // El <embed>/<img> del archivo es de mismo origen; se permite el framing
-                    // propio sin aflojar la restricción para orígenes externos.
                     $policies[] = trim($directive)." 'self'";
                     continue;
                 }
 
-                $policies[] = trim($directive).' '.$value;
+                $policies[] = trim($directive).' '.$valorFinal;
             }
 
             $response->headers->set('Content-Security-Policy', implode('; ', $policies));
