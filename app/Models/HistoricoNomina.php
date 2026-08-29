@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\EstadoNomina;
 use App\Enums\TipoColaborador;
+use Database\Factories\HistoricoNominaFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -31,6 +32,7 @@ use Illuminate\Support\Carbon;
  */
 class HistoricoNomina extends Model
 {
+    /** @use HasFactory<HistoricoNominaFactory> */
     use HasFactory;
 
     protected $table = 'historico_nomina';
@@ -74,11 +76,13 @@ class HistoricoNomina extends Model
         ];
     }
 
+    /** @return BelongsTo<Colaborador, $this> */
     public function colaborador(): BelongsTo
     {
         return $this->belongsTo(Colaborador::class)->withTrashed();
     }
 
+    /** @return BelongsTo<Evento, $this> */
     public function evento(): BelongsTo
     {
         return $this->belongsTo(Evento::class);

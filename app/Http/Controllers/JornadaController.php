@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ActualizarCompensacionJornadaRequest;
+use App\Http\Requests\ActualizarFraccionEventoJornadaRequest;
+use App\Http\Requests\ActualizarTipoPagoJornadaRequest;
+use App\Http\Requests\ActualizarValidadoJornadaRequest;
 use App\Models\Evento;
 use App\Models\JornadaConsolidada;
 use App\Services\JornadaGenerator;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 
 class JornadaController extends Controller
 {
@@ -14,25 +17,21 @@ class JornadaController extends Controller
     {
         $errores = $generator->generar();
 
-        if (!empty($errores)) {
-            return back()->with('warning', 'Jornadas generadas con ' . count($errores) . ' advertencia(s): ' . implode('; ', $errores));
+        if (! empty($errores)) {
+            return back()->with('warning', 'Jornadas generadas con '.count($errores).' advertencia(s): '.implode('; ', $errores));
         }
 
         return back()->with('success', 'Jornadas regeneradas correctamente.');
     }
 
-    public function actualizarValidado(Request $request, JornadaConsolidada $jornada): RedirectResponse
+    public function actualizarValidado(ActualizarValidadoJornadaRequest $request, JornadaConsolidada $jornada): RedirectResponse
     {
-        $validated = $request->validate([
-            'validado' => 'required|boolean',
-        ]);
-
-        $jornada->update(['validado' => $validated['validado']]);
+        $jornada->update(['validado' => $request->validated()['validado']]);
 
         return back();
     }
 
-    public function actualizarTipoPago(Request $request, JornadaConsolidada $jornada): RedirectResponse
+    public function actualizarTipoPago(ActualizarTipoPagoJornadaRequest $request, JornadaConsolidada $jornada): RedirectResponse
     {
         // Con 2+ eventos el mismo día, el traslape se pondera POR EVENTO (fracciones_evento),
         // nunca como tipo de pago de todo el día — así que TRASLAPE es inválido ahí.
@@ -41,13 +40,10 @@ class JornadaController extends Controller
             return back()->withErrors(['tipo_pago' => 'Un día con dos o más eventos no puede marcarse como Traslape: pondera cada evento individualmente.']);
         }
 
-        $validated = $request->validate([
-            'tipo_pago'    => 'required|in:JORNADA_COMPLETA,JORNADA_COMPLETA + EVENTO,TRASLAPE,SIN_PAGO,ERROR_EVENTO',
-            'traslape_pct' => 'required_if:tipo_pago,TRASLAPE|integer|min:1|max:99',
-        ]);
+        $validated = $request->validated();
 
         $jornada->update([
-            'tipo_pago'    => $validated['tipo_pago'],
+            'tipo_pago' => $validated['tipo_pago'],
             'traslape_pct' => $validated['tipo_pago'] === 'TRASLAPE' ? $validated['traslape_pct'] : null,
         ]);
 
@@ -58,12 +54,9 @@ class JornadaController extends Controller
      * Porcentaje individual (1-100) de UN evento específico dentro de un día con 2+ eventos —
      * el desempeño del colaborador puede variar por evento. 100 = paga completo.
      */
-    public function actualizarFraccionEvento(Request $request, JornadaConsolidada $jornada): RedirectResponse
+    public function actualizarFraccionEvento(ActualizarFraccionEventoJornadaRequest $request, JornadaConsolidada $jornada): RedirectResponse
     {
-        $validated = $request->validate([
-            'evento_id'  => 'required|exists:eventos,id',
-            'porcentaje' => 'required|integer|min:1|max:100',
-        ]);
+        $validated = $request->validated();
 
         $fracciones = $jornada->fracciones_evento ?? [];
         $fracciones[$validated['evento_id']] = $validated['porcentaje'];
@@ -77,13 +70,9 @@ class JornadaController extends Controller
      * Activa/desactiva la Compensación (bono extra sobre el Extra por día de evento, según el
      * % configurado en el colaborador) para esta jornada — aplica a todos los eventos del día.
      */
-    public function actualizarCompensacion(Request $request, JornadaConsolidada $jornada): RedirectResponse
+    public function actualizarCompensacion(ActualizarCompensacionJornadaRequest $request, JornadaConsolidada $jornada): RedirectResponse
     {
-        $validated = $request->validate([
-            'compensacion_activa' => 'required|boolean',
-        ]);
-
-        $jornada->update(['compensacion_activa' => $validated['compensacion_activa']]);
+        $jornada->update(['compensacion_activa' => $request->validated()['compensacion_activa']]);
 
         return back();
     }

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\TipoActividad;
+use Database\Factories\RegistroNormalizadoFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -29,6 +30,7 @@ use Illuminate\Support\Carbon;
  */
 class RegistroNormalizado extends Model
 {
+    /** @use HasFactory<RegistroNormalizadoFactory> */
     use HasFactory;
 
     protected $table = 'registros_normalizados';
@@ -60,11 +62,13 @@ class RegistroNormalizado extends Model
         ];
     }
 
+    /** @return BelongsTo<Colaborador, $this> */
     public function colaborador(): BelongsTo
     {
         return $this->belongsTo(Colaborador::class)->withTrashed();
     }
 
+    /** @return BelongsTo<TransporteUnidad, $this> */
     public function unidad(): BelongsTo
     {
         return $this->belongsTo(TransporteUnidad::class, 'transporte_unidad_id');

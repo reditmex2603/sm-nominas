@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ImprimirRangoHistoricoRequest;
 use App\Models\Colaborador;
 use App\Models\Evento;
 use App\Models\HistoricoNomina;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -66,16 +66,8 @@ class HistoricoController extends Controller
         ]);
     }
 
-    public function imprimirRango(Request $request): Response
+    public function imprimirRango(ImprimirRangoHistoricoRequest $request): Response
     {
-        $request->validate([
-            'fecha_desde' => 'nullable|date',
-            'fecha_hasta' => 'nullable|date',
-            'tipo' => 'nullable|in:base,freelance,conductores,conductor_base',
-            'colaborador_id' => 'nullable|integer|exists:colaboradores,id',
-            'estado' => 'nullable|in:PENDIENTE,PAGADO',
-        ]);
-
         $query = HistoricoNomina::with([
             'colaborador:id,nombre,apellidos',
             'colaborador.perfil:'.self::PERFIL_BANCARIO_COLUMNS,
@@ -105,8 +97,9 @@ class HistoricoController extends Controller
 
         $nominas = $query->orderBy('periodo_inicio', 'desc')->get();
 
+        /** @var Colaborador|null $colaborador */
         $colaborador = $request->filled('colaborador_id')
-            ? Colaborador::withTrashed()->find($request->colaborador_id)
+            ? Colaborador::withTrashed()->find((int) $request->colaborador_id)
             : null;
 
         return Inertia::render('historial/ImprimirRango', [

@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreTransporteRequest;
 use App\Models\TransporteDistancia;
 use App\Models\TransporteTarifa;
 use App\Models\TransporteUnidad;
 use App\Models\TransporteVehiculo;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -32,17 +32,9 @@ class TransporteController extends Controller
         ]);
     }
 
-    public function guardar(Request $request): RedirectResponse
+    public function guardar(StoreTransporteRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'vehiculos' => 'required|array|min:1',
-            'vehiculos.*.nombre' => 'required|string|max:255',
-            'distancias' => 'required|array|min:1',
-            'distancias.*.nombre' => 'required|string|max:255',
-            'distancias.*.es_standby' => 'boolean',
-            'tarifas' => 'required|array',
-            'tarifas.*.*' => ['nullable', 'numeric', 'min:0'],
-        ]);
+        $validated = $request->validated();
 
         try {
             DB::transaction(function () use ($validated) {

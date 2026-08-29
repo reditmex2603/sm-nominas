@@ -11,6 +11,7 @@ use App\Models\TransporteTarifa;
 use App\Models\TransporteVehiculo;
 use App\Services\FuzzyMatcher;
 use App\Support\Money;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 
 /**
@@ -19,6 +20,7 @@ use Illuminate\Support\Carbon;
  */
 class CalculadorConductor extends AbstractCalculadorNomina
 {
+    /** @return array<string, mixed> */
     public function calcular(Colaborador $col, Carbon $inicio, Carbon $fin, float $compensacion = 0): array
     {
         $jornadas = $this->jornadasValidadas($col->id, $inicio, $fin);
@@ -88,6 +90,14 @@ class CalculadorConductor extends AbstractCalculadorNomina
         };
     }
 
+    /** @param  Collection<int, TransporteVehiculo>  $vehiculos */
+    /** @param  Collection<int, TransporteDistancia>  $distancias */
+    /** @return array{vehiculo: string, distancia: string, monto: float} */
+    /**
+     * @param  Collection<int, TransporteVehiculo>  $vehiculos
+     * @param  Collection<int, TransporteDistancia>  $distancias
+     * @return array{vehiculo: string, distancia: string, monto: float}
+     */
     protected function detectarTarifa(string $detalle, $vehiculos, $distancias): array
     {
         $noDetectado = ['vehiculo' => 'No detectado', 'distancia' => 'No detectada', 'monto' => 0.0];
@@ -109,7 +119,7 @@ class CalculadorConductor extends AbstractCalculadorNomina
             if (str_contains($normResto, $normDist)) {
                 $distanciaEncontrada = $dist;
                 $pos = mb_stripos($normResto, $normDist);
-                $vehiculoTexto = trim(mb_substr($resto, 0, $pos));
+                $vehiculoTexto = trim(mb_substr($resto, 0, $pos === false ? 0 : $pos));
                 break;
             }
         }

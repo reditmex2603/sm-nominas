@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\CategoriaColaborador;
 use App\Enums\TipoColaborador;
+use Database\Factories\ColaboradorFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -26,6 +27,7 @@ use Illuminate\Support\Str;
  */
 class Colaborador extends Model
 {
+    /** @use HasFactory<ColaboradorFactory> */
     use HasFactory, SoftDeletes;
 
     protected $table = 'colaboradores';
@@ -63,41 +65,49 @@ class Colaborador extends Model
         ];
     }
 
+    /** @return BelongsToMany<Evento, $this> */
     public function eventos(): BelongsToMany
     {
         return $this->belongsToMany(Evento::class, 'asignaciones');
     }
 
+    /** @return HasMany<Asignacion, $this> */
     public function asignaciones(): HasMany
     {
         return $this->hasMany(Asignacion::class);
     }
 
+    /** @return HasMany<RegistroNormalizado, $this> */
     public function registros(): HasMany
     {
         return $this->hasMany(RegistroNormalizado::class);
     }
 
+    /** @return HasMany<JornadaConsolidada, $this> */
     public function jornadas(): HasMany
     {
         return $this->hasMany(JornadaConsolidada::class);
     }
 
+    /** @return HasMany<Anticipo, $this> */
     public function anticipos(): HasMany
     {
         return $this->hasMany(Anticipo::class);
     }
 
+    /** @return HasMany<HistoricoNomina, $this> */
     public function nominas(): HasMany
     {
         return $this->hasMany(HistoricoNomina::class);
     }
 
+    /** @return HasOne<ColaboradorPerfil, $this> */
     public function perfil(): HasOne
     {
         return $this->hasOne(ColaboradorPerfil::class);
     }
 
+    /** @return HasMany<Prestamo, $this> */
     public function prestamos(): HasMany
     {
         return $this->hasMany(Prestamo::class);

@@ -2,14 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreAsistenciaPublicaRequest;
 use App\Models\Colaborador;
 use App\Models\RegistroNormalizado;
 use App\Models\TransporteDistancia;
 use App\Models\TransporteUnidad;
 use App\Models\TransporteVehiculo;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -36,29 +35,11 @@ class AsistenciaPublicaController extends Controller
         ]);
     }
 
-    public function store(Request $request, string $token): RedirectResponse
+    public function store(StoreAsistenciaPublicaRequest $request, string $token): RedirectResponse
     {
         $colaborador = Colaborador::where('token', $token)->firstOrFail();
 
-        $tiposPermitidos = $colaborador->tipo->actividadesPermitidas();
-
-        $validated = $request->validate([
-            'tipo_actividad' => ['required', Rule::in($tiposPermitidos)],
-            'actividad' => ['nullable', 'required_if:tipo_actividad,Bodega', 'string', 'max:500'],
-            'evento_raw' => ['nullable', 'required_if:tipo_actividad,Evento', 'string', 'max:255'],
-            'etapa' => 'nullable|string|max:100',
-            'vehiculo' => ['nullable', 'required_if:tipo_actividad,Transporte', 'string', 'max:255'],
-            'distancia' => ['nullable', 'required_if:tipo_actividad,Transporte', 'string', 'max:255'],
-            'transporte_unidad_id' => ['nullable', 'required_if:tipo_actividad,Transporte', 'exists:transporte_unidades,id'],
-            'origen' => ['nullable', 'required_if:tipo_actividad,Transporte', 'string', 'max:255'],
-            'destino' => ['nullable', 'required_if:tipo_actividad,Transporte', 'string', 'max:255'],
-            'extras' => 'nullable|string|max:2000',
-            'evidencia' => 'required|file|image|max:5120',
-            'comentarios' => 'nullable|string|max:1000',
-            'fecha' => 'required|date',
-            'hora' => 'required|date_format:H:i',
-            'hora_salida' => 'nullable|date_format:H:i',
-        ]);
+        $validated = $request->validated();
 
         if ($request->hasFile('evidencia')) {
             $validated['evidencia_path'] = $request->file('evidencia')->store('evidencias', 'documentos');

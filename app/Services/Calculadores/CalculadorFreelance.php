@@ -15,6 +15,7 @@ use App\Support\Money;
  */
 class CalculadorFreelance extends AbstractCalculadorNomina
 {
+    /** @return array<string, mixed> */
     public function calcular(
         Colaborador $col,
         Evento $evento,

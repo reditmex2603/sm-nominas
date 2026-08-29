@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use Database\Factories\ServicioProfesionalFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ServicioProfesional extends Model
 {
+    /** @use HasFactory<ServicioProfesionalFactory> */
     use HasFactory;
 
     protected $table = 'servicios_profesionales';
@@ -31,6 +33,7 @@ class ServicioProfesional extends Model
         ];
     }
 
+    /** @return BelongsTo<Evento, $this> */
     public function evento(): BelongsTo
     {
         return $this->belongsTo(Evento::class);

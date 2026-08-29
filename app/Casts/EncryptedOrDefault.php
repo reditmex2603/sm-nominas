@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Crypt;
  * Cast que acepta texto plano o cifrado al leer (migración segura), y siempre
  * cifra al guardar. Una vez que todos los registros existentes se hayan migrado
  * con `perfiles:cifrar-datos`, se comporta exactamente como AsEncrypted.
+ *
+ * @implements CastsAttributes<mixed, string|null>
  */
 class EncryptedOrDefault implements CastsAttributes
 {

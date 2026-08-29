@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreServicioProfesionalRequest;
 use App\Models\Evento;
 use App\Models\ServicioProfesional;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -21,18 +21,9 @@ class ServicioProfesionalController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreServicioProfesionalRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'nombre'     => 'required|string|max:255',
-            'apellidos'  => 'nullable|string|max:255',
-            'tipo'       => 'required|in:RIGGER,OPERADOR_AUDIO,OPERADOR_VIDEO,OPERADOR_LUZ,OTRO',
-            'evento_id'  => 'nullable|exists:eventos,id',
-            'concepto'   => 'required|string|max:500',
-            'monto'      => 'required|numeric|min:0',
-            'fecha'      => 'required|date',
-            'autoriza'   => 'nullable|string|max:255',
-        ]);
+        $validated = $request->validated();
 
         ServicioProfesional::create($validated);
 

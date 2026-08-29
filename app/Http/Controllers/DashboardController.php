@@ -15,10 +15,11 @@ use App\Models\TransporteUnidad;
 use App\Models\TransporteVehiculo;
 use App\Models\Viatico;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(): Response
     {
         $ano = (int) now()->format('Y');
 

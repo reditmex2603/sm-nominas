@@ -3,6 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Enums\TipoColaborador;
+use App\Http\Requests\GuardarRequisitosEventoRequest;
+use App\Http\Requests\StoreEventoRequest;
+use App\Http\Requests\SyncUnidadesEventoRequest;
+use App\Http\Requests\UpdateEventoRequest;
 use App\Models\Colaborador;
 use App\Models\Evento;
 use App\Models\HistoricoNomina;
@@ -10,11 +14,9 @@ use App\Models\ParametroSistema;
 use App\Models\ServicioProfesional;
 use App\Models\TransporteUnidad;
 use App\Models\Viatico;
-use App\Rules\Telefono;
 use App\Services\NominaCalculator;
 use App\Support\Documentos;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -28,22 +30,9 @@ class EventoController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreEventoRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'nombre' => 'required|string|max:255|unique:eventos',
-            'lugar' => 'nullable|string|max:255',
-            'fecha_inicio' => 'nullable|date',
-            'fecha_fin' => 'nullable|date|after_or_equal:fecha_inicio',
-            'tamano' => 'required|in:CHICO,MEDIANO,GRANDE',
-            'nombre_contratante' => 'nullable|string|max:255',
-            'telefono_contratante' => ['nullable', new Telefono],
-            'contacto_nombre' => 'nullable|string|max:255',
-            'contacto_telefono' => ['nullable', new Telefono],
-            'descripcion' => 'nullable|string|max:5000',
-            'observaciones_tecnicas' => 'nullable|string|max:5000',
-            'enlace_ubicacion' => 'nullable|url|max:1000',
-        ]);
+        $validated = $request->validated();
 
         $claveDefault = 'pago_default_'.strtolower($validated['tamano']);
         $validated['pago_por_evento_completo'] = (float) ParametroSistema::get($claveDefault, 0);
@@ -55,23 +44,9 @@ class EventoController extends Controller
         return back();
     }
 
-    public function update(Request $request, Evento $evento): RedirectResponse
+    public function update(UpdateEventoRequest $request, Evento $evento): RedirectResponse
     {
-        $validated = $request->validate([
-            'nombre' => 'sometimes|string|max:255|unique:eventos,nombre,'.$evento->id,
-            'lugar' => 'nullable|string|max:255',
-            'fecha_inicio' => 'nullable|date',
-            'fecha_fin' => 'nullable|date|after_or_equal:fecha_inicio',
-            'tamano' => 'sometimes|in:CHICO,MEDIANO,GRANDE',
-            'pago_por_evento_completo' => 'sometimes|numeric|min:0',
-            'nombre_contratante' => 'nullable|string|max:255',
-            'telefono_contratante' => ['sometimes', 'nullable', new Telefono],
-            'contacto_nombre' => 'nullable|string|max:255',
-            'contacto_telefono' => ['sometimes', 'nullable', new Telefono],
-            'descripcion' => 'nullable|string|max:5000',
-            'observaciones_tecnicas' => 'nullable|string|max:5000',
-            'enlace_ubicacion' => 'nullable|url|max:1000',
-        ]);
+        $validated = $request->validated();
 
         $evento->update($validated);
 
@@ -133,12 +108,9 @@ class EventoController extends Controller
         ]);
     }
 
-    public function syncUnidades(Request $request, Evento $evento): RedirectResponse
+    public function syncUnidades(SyncUnidadesEventoRequest $request, Evento $evento): RedirectResponse
     {
-        $validated = $request->validate([
-            'unidad_ids' => 'present|array',
-            'unidad_ids.*' => 'integer|exists:transporte_unidades,id',
-        ]);
+        $validated = $request->validated();
 
         $evento->unidadesTransporte()->sync($validated['unidad_ids']);
 
@@ -263,20 +235,16 @@ class EventoController extends Controller
     }
 
     /** Guarda (o limpia, enviando todo en 0) los requisitos de personal para la cotización. */
-    public function guardarRequisitos(Request $request, Evento $evento): RedirectResponse
+    public function guardarRequisitos(GuardarRequisitosEventoRequest $request, Evento $evento): RedirectResponse
     {
-        $validated = $request->validate([
-            'base' => 'required|array',
-            'base.*' => 'required|array',
-            'base.*.*' => 'required|integer|min:0|max:99',
-            'freelance' => 'required|integer|min:0|max:99',
-        ]);
+        $validated = $request->validated();
 
         $evento->update(['requisitos_cotizacion' => $validated]);
 
         return back()->with('success', 'Requisitos de cotización guardados.');
     }
 
+    /** @return array<string, mixed> */
     private function requisitosVacios(): array
     {
         return [
@@ -295,6 +263,10 @@ class EventoController extends Controller
      * forman parte de la cotización, se muestran sin restricción. Si no hay requisitos
      * capturados (todo en 0), Base/Freelance quedan bloqueados hasta que se definan en la
      * sección "Requisitos de personal" — solo se puede asignar Conductores.
+     *
+     * @param  Collection<int, int>  $asignadosIds
+     * @param  Collection<int, Colaborador>  $asignados
+     * @return Collection<int, Colaborador>
      */
     private function disponiblesFiltrados(Evento $evento, $asignadosIds, $asignados): Collection
     {
@@ -341,6 +313,10 @@ class EventoController extends Controller
      * (no un promedio ni un parámetro aparte) y el mismo extra por categoría/nivel/tamaño que ya
      * usa el motor de nómina real.
      */
+    /**
+     * @param  Collection<int, Colaborador>  $asignados
+     * @return array<string, mixed>
+     */
     private function calcularCotizacion(Evento $evento, $asignados, NominaCalculator $calc): array
     {
         $dias = ($evento->fecha_inicio && $evento->fecha_fin)
@@ -383,6 +359,7 @@ class EventoController extends Controller
      * El cast 'date' serializa a ISO completo (ej. "2026-08-01T00:00:00.000000Z"), que
      * `<input type="date">` no acepta como value — lo reformatea a "Y-m-d" antes de enviarlo.
      */
+    /** @return array<string, mixed> */
     private function conFechasFormateadas(Evento $evento): array
     {
         return [
@@ -401,6 +378,8 @@ class EventoController extends Controller
      * detecta buscando en el desglose YA CONGELADO (`_jornadas[].eventos_dia`) qué nóminas Base
      * efectivamente pagaron algún día de este evento; el monto atribuible es solo el bono de
      * evento de esos días (el sueldo diario no es específico de ningún evento).
+     *
+     * @return array<string, mixed>
      */
     private function nominaDelEvento(Evento $evento): array
     {
@@ -421,10 +400,13 @@ class EventoController extends Controller
             ->whereNotNull('desglose')
             ->with('colaborador:id,nombre,apellidos')
             ->get()
-            ->map(function ($n) use ($evento) {
-                $jornadas = collect($n->desglose['_jornadas'] ?? [])
-                    ->map(function ($j) use ($evento) {
-                        $match = collect($j['eventos_dia'] ?? [])->firstWhere('nombre', $evento->nombre);
+            ->map(function (HistoricoNomina $n) use ($evento) {
+                /** @var array<int, array{fecha: string, tipo_pago: string, traslape_pct?: int|null, detalle: string|null, eventos_dia: array<int, array{nombre: string, bono: float, pct_etapas: float}>}> $jornadasDesglose */
+                $jornadasDesglose = $n->desglose['_jornadas'] ?? [];
+
+                $jornadas = collect($jornadasDesglose)
+                    ->map(function (array $j) use ($evento) {
+                        $match = collect($j['eventos_dia'])->firstWhere('nombre', $evento->nombre);
 
                         return $match ? [
                             'fecha' => $j['fecha'],
@@ -438,6 +420,7 @@ class EventoController extends Controller
                     ->filter()
                     ->values();
 
+                /** @var Collection<int, array{fecha: string, tipo_pago: string, traslape_pct: int|null, detalle: string|null, bono: float, pct_etapas: float}> $jornadas */
                 if ($jornadas->isEmpty()) {
                     return null;
                 }
@@ -472,6 +455,7 @@ class EventoController extends Controller
     }
 
     /** Viáticos registrados para este evento, para la pestaña "Viáticos" del detalle del evento. */
+    /** @return array<string, mixed> */
     private function viaticosDelEvento(Evento $evento): array
     {
         $items = Viatico::where('evento_id', $evento->id)
@@ -486,6 +470,7 @@ class EventoController extends Controller
     }
 
     /** Servicios profesionales registrados para este evento. */
+    /** @return array<string, mixed> */
     private function serviciosDelEvento(Evento $evento): array
     {
         $items = ServicioProfesional::where('evento_id', $evento->id)
@@ -503,6 +488,13 @@ class EventoController extends Controller
      * subtotales ya calculados (nóminas frecuentadas, viáticos y servicios profesionales), la
      * cotización proyectada y algunos promedios útiles. El "margen" es meramente proyectado:
      * compara lo cotizado (100% de participación) contra lo gastado hasta ahora.
+     *
+     * @param  Collection<int, Colaborador>  $asignados
+     * @param  array<string, mixed>  $nomina
+     * @param  array<string, mixed>  $viaticos
+     * @param  array<string, mixed>  $servicios
+     * @param  array<string, mixed>  $cotizacion
+     * @return array<string, mixed>
      */
     private function resumenDelEvento(
         Evento $evento,

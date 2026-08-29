@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ActualizarDocumentosTransporteUnidadRequest;
+use App\Http\Requests\StoreTransporteUnidadRequest;
+use App\Http\Requests\UpdateTransporteUnidadRequest;
 use App\Models\TransporteUnidad;
 use App\Models\TransporteVehiculo;
 use App\Support\Documentos;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -16,15 +18,9 @@ class TransporteUnidadController extends Controller
     /** Documentos de la unidad — campo de subida/eliminación → columna `{campo}_documento_path`. */
     private const CAMPOS_DOCUMENTO = ['placas', 'tarjeta_circulacion', 'poliza_seguro', 'verificacion', 'tenencia'];
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreTransporteUnidadRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'marca' => 'required|string|max:255',
-            'modelo' => 'required|string|max:255',
-            'numero_placas' => 'nullable|string|max:50',
-            'pertenencia' => 'required|in:PROPIA,RENTADA',
-            'transporte_vehiculo_id' => 'nullable|exists:transportes_vehiculos,id',
-        ]);
+        $validated = $request->validated();
 
         TransporteUnidad::create($validated);
 
@@ -33,15 +29,9 @@ class TransporteUnidadController extends Controller
         return back();
     }
 
-    public function update(Request $request, TransporteUnidad $unidad): RedirectResponse
+    public function update(UpdateTransporteUnidadRequest $request, TransporteUnidad $unidad): RedirectResponse
     {
-        $validated = $request->validate([
-            'marca' => 'required|string|max:255',
-            'modelo' => 'required|string|max:255',
-            'numero_placas' => 'nullable|string|max:50',
-            'pertenencia' => 'required|in:PROPIA,RENTADA',
-            'transporte_vehiculo_id' => 'nullable|exists:transportes_vehiculos,id',
-        ]);
+        $validated = $request->validated();
 
         $unidad->update($validated);
 
@@ -94,23 +84,9 @@ class TransporteUnidadController extends Controller
         ]);
     }
 
-    public function actualizarDocumentos(Request $request, TransporteUnidad $unidad): RedirectResponse
+    public function actualizarDocumentos(ActualizarDocumentosTransporteUnidadRequest $request, TransporteUnidad $unidad): RedirectResponse
     {
-        $validated = $request->validate([
-            'alias' => 'nullable|string|max:255',
-            'numero_serie' => 'nullable|string|max:50',
-            'numero_poliza_seguro' => 'nullable|string|max:50',
-            'vigencia_poliza_seguro' => 'nullable|date',
-            'vigencia_verificacion' => 'nullable|date',
-            'tipo_engomado' => 'nullable|string|max:50',
-            'color_engomado' => 'nullable|string|max:50',
-            'fotografia' => 'nullable|image|mimes:jpg,jpeg,png|max:5120',
-            'placas_documento' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
-            'tarjeta_circulacion_documento' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
-            'poliza_seguro_documento' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
-            'verificacion_documento' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
-            'tenencia_documento' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
-        ]);
+        $validated = $request->validated();
 
         $unidad->fill([
             'alias' => $validated['alias'] ?? null,
@@ -173,6 +149,7 @@ class TransporteUnidadController extends Controller
         return back();
     }
 
+    /** @return array<string, string|null> */
     private function documentoUrls(TransporteUnidad $unidad): array
     {
         $urls = [];
@@ -185,6 +162,7 @@ class TransporteUnidadController extends Controller
         return $urls;
     }
 
+    /** @return array<string, string|null> */
     private function fotografiaUrl(TransporteUnidad $unidad): array
     {
         return ['fotografia_url' => Documentos::url($unidad->fotografia_path)];

@@ -3,11 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Enums\TipoColaborador;
+use App\Http\Requests\StoreColaboradorRequest;
+use App\Http\Requests\UpdateColaboradorNominaRequest;
 use App\Models\Anticipo;
 use App\Models\Colaborador;
 use App\Models\ColaboradorPerfil;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -56,18 +57,9 @@ class ColaboradorController extends Controller
             && blank($perfil->whatsapp);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreColaboradorRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'nombre' => 'required|string|max:255',
-            'apellidos' => 'required|string|max:255',
-            'tipo' => 'required|in:COLABORADOR BASE,FREELANCE,CONDUCTOR,CONDUCTOR BASE',
-            'categoria' => 'required_if:tipo,COLABORADOR BASE|nullable|in:Encargado de área,Técnico,Stagehand SM',
-            'nivel' => 'required_if:tipo,COLABORADOR BASE|nullable|integer|in:1,2',
-            'compensacion_pct' => 'nullable|integer|min:0|max:100',
-            'sueldo_diario' => 'required_if:tipo,CONDUCTOR BASE|nullable|numeric|min:0',
-            'extra_dia_adicional' => 'nullable|numeric|min:0',
-        ]);
+        $validated = $request->validated();
 
         Colaborador::create($validated);
 
@@ -76,31 +68,14 @@ class ColaboradorController extends Controller
         return back();
     }
 
-    public function update(Request $request, Colaborador $colaborador): RedirectResponse
+    public function update(UpdateColaboradorNominaRequest $request, Colaborador $colaborador): RedirectResponse
     {
-        $rules = [];
-
-        if ($colaborador->tipo === TipoColaborador::Base) {
-            $rules['sueldo_diario'] = 'nullable|numeric|min:0';
-            $rules['categoria'] = 'required|in:Encargado de área,Técnico,Stagehand SM';
-            $rules['nivel'] = 'required|integer|in:1,2';
-            $rules['compensacion_pct'] = 'nullable|integer|min:0|max:100';
-        }
-
-        if ($colaborador->tipo === TipoColaborador::ConductorBase) {
-            $rules['sueldo_diario'] = 'required|numeric|min:0';
-            $rules['compensacion_pct'] = 'nullable|integer|min:0|max:100';
-        }
-
-        if ($colaborador->tipo === TipoColaborador::Freelance) {
-            $rules['extra_dia_adicional'] = 'nullable|numeric|min:0';
-        }
-
-        if (empty($rules)) {
+        // Si el tipo no tiene campos de nómina editables (reglas vacías), no hay nada que actualizar.
+        if (empty($request->rules())) {
             return back();
         }
 
-        $colaborador->update($request->validate($rules));
+        $colaborador->update($request->validated());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Datos de nómina del colaborador actualizados.']);
 

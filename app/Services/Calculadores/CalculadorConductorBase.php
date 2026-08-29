@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
  */
 class CalculadorConductorBase extends CalculadorConductor
 {
+    /** @return array<string, mixed> */
     public function calcular(Colaborador $col, Carbon $inicio, Carbon $fin, float $compensacion = 0): array
     {
         $jornadas = $this->jornadasValidadas($col->id, $inicio, $fin);

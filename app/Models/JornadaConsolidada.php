@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\TipoPago;
+use Database\Factories\JornadaConsolidadaFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -27,6 +28,7 @@ use Illuminate\Support\Carbon;
  */
 class JornadaConsolidada extends Model
 {
+    /** @use HasFactory<JornadaConsolidadaFactory> */
     use HasFactory;
 
     protected $table = 'jornadas_consolidadas';
@@ -61,6 +63,7 @@ class JornadaConsolidada extends Model
         ];
     }
 
+    /** @return BelongsTo<Colaborador, $this> */
     public function colaborador(): BelongsTo
     {
         return $this->belongsTo(Colaborador::class)->withTrashed();

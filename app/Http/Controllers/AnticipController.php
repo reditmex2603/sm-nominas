@@ -2,12 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreAnticipoRequest;
 use App\Models\Anticipo;
 use App\Models\Asignacion;
 use App\Models\Colaborador;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -26,22 +25,9 @@ class AnticipController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreAnticipoRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'colaborador_id' => 'required|exists:colaboradores,id',
-            'monto' => 'required|numeric|min:0.01',
-            'concepto' => 'nullable|string|max:500',
-            'tipo' => 'sometimes|in:EVENTO,SUELTO',
-            'evento_id' => [
-                'nullable',
-                'required_if:tipo,EVENTO',
-                Rule::exists('asignaciones', 'evento_id')
-                    ->where('colaborador_id', $request->integer('colaborador_id')),
-            ],
-            'fecha' => 'nullable|date',
-            'entregado_por' => 'nullable|string|max:255',
-        ]);
+        $validated = $request->validated();
 
         // Default: fecha de hoy si no se proporciona
         $validated['fecha'] ??= now()->toDateString();

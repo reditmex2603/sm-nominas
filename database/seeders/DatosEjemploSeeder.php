@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Enums\PeriodicidadPrestamo;
+use App\Enums\TipoColaborador;
 use App\Models\Anticipo;
 use App\Models\Asignacion;
 use App\Models\Colaborador;
@@ -61,85 +63,85 @@ class DatosEjemploSeeder extends Seeder
 
         // ── 1. COLABORADORES ────────────────────────────────────────────────
         $carlos = Colaborador::create([
-            'nombre'        => 'Carlos',
-            'apellidos'     => 'Mendoza López',
-            'tipo'          => 'COLABORADOR BASE',
-            'categoria'     => 'Encargado de área',
-            'nivel'         => 1,
+            'nombre' => 'Carlos',
+            'apellidos' => 'Mendoza López',
+            'tipo' => 'COLABORADOR BASE',
+            'categoria' => 'Encargado de área',
+            'nivel' => 1,
             'sueldo_diario' => 900.00,
         ]);
 
         $ana = Colaborador::create([
-            'nombre'        => 'Ana María',
-            'apellidos'     => 'Pérez Ruiz',
-            'tipo'          => 'COLABORADOR BASE',
-            'categoria'     => 'Técnico',
-            'nivel'         => 2,
+            'nombre' => 'Ana María',
+            'apellidos' => 'Pérez Ruiz',
+            'tipo' => 'COLABORADOR BASE',
+            'categoria' => 'Técnico',
+            'nivel' => 2,
             'sueldo_diario' => 850.00,
         ]);
 
         $roberto = Colaborador::create([
-            'nombre'        => 'Roberto',
-            'apellidos'     => 'Jiménez Castro',
-            'tipo'          => 'COLABORADOR BASE',
-            'categoria'     => 'Stagehand SM',
-            'nivel'         => 1,
+            'nombre' => 'Roberto',
+            'apellidos' => 'Jiménez Castro',
+            'tipo' => 'COLABORADOR BASE',
+            'categoria' => 'Stagehand SM',
+            'nivel' => 1,
             'sueldo_diario' => 950.00,
         ]);
 
         $sofia = Colaborador::create([
-            'nombre'              => 'Sofía',
-            'apellidos'           => 'Ramírez Morales',
-            'tipo'                => 'FREELANCE',
+            'nombre' => 'Sofía',
+            'apellidos' => 'Ramírez Morales',
+            'tipo' => 'FREELANCE',
             'extra_dia_adicional' => 400.00,
         ]);
 
         $luis = Colaborador::create([
-            'nombre'              => 'Luis',
-            'apellidos'           => 'Hernández Santos',
-            'tipo'                => 'FREELANCE',
+            'nombre' => 'Luis',
+            'apellidos' => 'Hernández Santos',
+            'tipo' => 'FREELANCE',
             'extra_dia_adicional' => 450.00,
         ]);
 
         $miguel = Colaborador::create([
-            'nombre'    => 'Miguel Ángel',
+            'nombre' => 'Miguel Ángel',
             'apellidos' => 'Flores Díaz',
-            'tipo'      => 'CONDUCTOR',
+            'tipo' => 'CONDUCTOR',
         ]);
 
         $patricia = Colaborador::create([
-            'nombre'    => 'Patricia',
+            'nombre' => 'Patricia',
             'apellidos' => 'Gómez Reyes',
-            'tipo'      => 'CONDUCTOR',
+            'tipo' => 'CONDUCTOR',
         ]);
 
         $fernando = Colaborador::create([
-            'nombre'    => 'Fernando',
+            'nombre' => 'Fernando',
             'apellidos' => 'Ruiz Torres',
-            'tipo'      => 'CONDUCTOR BASE',
+            'tipo' => 'CONDUCTOR BASE',
             'sueldo_diario' => 900.00,
         ]);
 
         // ── 2. PERFILES DE COLABORADOR (datos de emergencia + documentos, opcionales) ──
         ColaboradorPerfil::create([
             'colaborador_id' => $carlos->id,
-            'tipo_sangre'    => 'O+',
-            'alergias'       => 'Polvo, penicilina',
+            'tipo_sangre' => 'O+',
+            'alergias' => 'Polvo, penicilina',
             'padecimientos_cronicos' => null,
-            'numero_seguro_social'   => '12345678901',
+            'numero_seguro_social' => '12345678901',
             'seguro_social_documento_path' => 'colaboradores/carlos/seguro_social.pdf',
-            'ine_documento_path'            => 'colaboradores/carlos/ine.png',
-            'curp_documento_path'           => 'colaboradores/carlos/curp.pdf',
+            'ine_documento_path' => 'colaboradores/carlos/ine.png',
+            'curp_documento_path' => 'colaboradores/carlos/curp.pdf',
             'comprobante_domicilio_documento_path' => 'colaboradores/carlos/comprobante_domicilio.pdf',
-            'licencia_conducir_documento_path'     => null,
+            'licencia_conducir_documento_path' => null,
         ]);
 
         ColaboradorPerfil::create([
             'colaborador_id' => $ana->id,
-            'tipo_sangre'    => 'A+',
-            'alergias'       => null,
+            'tipo_sangre' => 'A+',
+            'alergias' => null,
             'padecimientos_cronicos' => 'Asma leve',
-            'numero_seguro_social'   => '98765432109',
+            'numero_seguro_social' => '98765432109',
             'seguro_social_documento_path' => 'colaboradores/ana/seguro_social.pdf',
         ]);
 
@@ -151,8 +153,8 @@ class DatosEjemploSeeder extends Seeder
 
         ColaboradorPerfil::create([
             'colaborador_id' => $miguel->id,
-            'tipo_sangre'    => 'B+',
-            'numero_seguro_social'   => '24680135791',
+            'tipo_sangre' => 'B+',
+            'numero_seguro_social' => '24680135791',
             'seguro_social_documento_path' => 'colaboradores/miguel/seguro_social.pdf',
             'licencia_conducir_documento_path' => 'colaboradores/miguel/licencia.pdf',
         ]);
@@ -161,49 +163,49 @@ class DatosEjemploSeeder extends Seeder
 
         // ── 3. EVENTOS (con fechas y requisitos de cotización) ────────────────
         $festival = Evento::create([
-            'nombre'                   => 'Festival de Verano 2026',
-            'lugar'                    => 'Foro Sol, CDMX',
-            'fecha_inicio'             => $d(1),
-            'fecha_fin'                => $d(7),
-            'tamano'                   => 'GRANDE',
+            'nombre' => 'Festival de Verano 2026',
+            'lugar' => 'Foro Sol, CDMX',
+            'fecha_inicio' => $d(1),
+            'fecha_fin' => $d(7),
+            'tamano' => 'GRANDE',
             'pago_por_evento_completo' => 3000.00,
-            'requisitos_cotizacion'    => [
+            'requisitos_cotizacion' => [
                 'base' => [
                     'Encargado de área' => ['1' => 1, '2' => 0],
-                    'Técnico'           => ['1' => 1, '2' => 1],
-                    'Stagehand SM'      => ['1' => 1, '2' => 0],
+                    'Técnico' => ['1' => 1, '2' => 1],
+                    'Stagehand SM' => ['1' => 1, '2' => 0],
                 ],
                 'freelance' => 2,
             ],
         ]);
 
         $boda = Evento::create([
-            'nombre'                   => 'Boda García-Muñoz',
-            'lugar'                    => 'Hacienda San Miguel, Texcoco',
-            'fecha_inicio'             => $d(5),
-            'fecha_fin'                => $d(5),
-            'tamano'                   => 'CHICO',
+            'nombre' => 'Boda García-Muñoz',
+            'lugar' => 'Hacienda San Miguel, Texcoco',
+            'fecha_inicio' => $d(5),
+            'fecha_fin' => $d(5),
+            'tamano' => 'CHICO',
             'pago_por_evento_completo' => 1500.00,
-            'requisitos_cotizacion'    => [
+            'requisitos_cotizacion' => [
                 'base' => [
                     'Encargado de área' => ['1' => 1, '2' => 0],
-                    'Técnico'           => ['1' => 0, '2' => 0],
-                    'Stagehand SM'      => ['1' => 0, '2' => 0],
+                    'Técnico' => ['1' => 0, '2' => 0],
+                    'Stagehand SM' => ['1' => 0, '2' => 0],
                 ],
                 'freelance' => 1,
             ],
         ]);
 
         $concierto = Evento::create([
-            'nombre'                   => 'Concierto Navidad SM',
-            'lugar'                    => 'Teatro Metropolitan, CDMX',
-            'fecha_inicio'             => $d(5),
-            'fecha_fin'                => $d(6),
-            'tamano'                   => 'MEDIANO',
+            'nombre' => 'Concierto Navidad SM',
+            'lugar' => 'Teatro Metropolitan, CDMX',
+            'fecha_inicio' => $d(5),
+            'fecha_fin' => $d(6),
+            'tamano' => 'MEDIANO',
             'pago_por_evento_completo' => 2500.00,
-            'requisitos_cotizacion'    => [
+            'requisitos_cotizacion' => [
                 'base' => [
-                    'Técnico'      => ['1' => 1, '2' => 1],
+                    'Técnico' => ['1' => 1, '2' => 1],
                     'Stagehand SM' => ['1' => 1, '2' => 0],
                 ],
                 'freelance' => 1,
@@ -211,13 +213,13 @@ class DatosEjemploSeeder extends Seeder
         ]);
 
         $feria = Evento::create([
-            'nombre'                   => 'Feria Tech Empresarial',
-            'lugar'                    => 'Centro Banamex, CDMX',
-            'fecha_inicio'             => null, // fecha por definir → aparece en "Próximos eventos"
-            'fecha_fin'                => null,
-            'tamano'                   => 'MEDIANO',
+            'nombre' => 'Feria Tech Empresarial',
+            'lugar' => 'Centro Banamex, CDMX',
+            'fecha_inicio' => null, // fecha por definir → aparece en "Próximos eventos"
+            'fecha_fin' => null,
+            'tamano' => 'MEDIANO',
             'pago_por_evento_completo' => 2500.00,
-            'requisitos_cotizacion'    => [
+            'requisitos_cotizacion' => [
                 'base' => [
                     'Stagehand SM' => ['1' => 2, '2' => 0],
                 ],
@@ -241,11 +243,11 @@ class DatosEjemploSeeder extends Seeder
 
         // ── 5. CATÁLOGO DE TRANSPORTE (matriz de tarifas) ────────────────────
         $vCamioneta = TransporteVehiculo::create(['nombre' => 'Camioneta 3.5T', 'orden' => 1]);
-        $vVan       = TransporteVehiculo::create(['nombre' => 'Van de Carga',    'orden' => 2]);
-        $vSprinter  = TransporteVehiculo::create(['nombre' => 'Sprinter',        'orden' => 3]);
-        $vPickup    = TransporteVehiculo::create(['nombre' => 'Pick-up',         'orden' => 4]);
+        $vVan = TransporteVehiculo::create(['nombre' => 'Van de Carga',    'orden' => 2]);
+        $vSprinter = TransporteVehiculo::create(['nombre' => 'Sprinter',        'orden' => 3]);
+        $vPickup = TransporteVehiculo::create(['nombre' => 'Pick-up',         'orden' => 4]);
 
-        $dLocal   = TransporteDistancia::create(['nombre' => 'Local (< 10 km)',          'es_standby' => false, 'orden' => 1]);
+        $dLocal = TransporteDistancia::create(['nombre' => 'Local (< 10 km)',          'es_standby' => false, 'orden' => 1]);
         $dZonaMet = TransporteDistancia::create(['nombre' => 'Zona Metropolitana (10-30 km)', 'es_standby' => false, 'orden' => 2]);
         $dForaneo = TransporteDistancia::create(['nombre' => 'Foráneo (30-80 km)',       'es_standby' => false, 'orden' => 3]);
         $dStandby = TransporteDistancia::create(['nombre' => 'STANDBY',                  'es_standby' => true,  'orden' => 4]);
@@ -271,52 +273,52 @@ class DatosEjemploSeeder extends Seeder
 
         foreach ($tarifas as [$vid, $did, $tarifa]) {
             TransporteTarifa::create([
-                'vehiculo_id'  => $vid,
+                'vehiculo_id' => $vid,
                 'distancia_id' => $did,
-                'tarifa'       => $tarifa,
+                'tarifa' => $tarifa,
             ]);
         }
 
         // ── 6. UNIDADES DE TRANSPORTE (flotilla física, distinta de las categorías) ──
         $uSprinter = TransporteUnidad::create([
-            'marca'                       => 'Mercedes-Benz',
-            'modelo'                      => 'Sprinter 519 CDI',
-            'numero_placas'               => 'SM-8841-A',
-            'pertenencia'                 => 'PROPIA',
-            'transporte_vehiculo_id'      => $vSprinter->id,
-            'placas_documento_path'       => 'unidades-transporte/sprinter-01/placas.pdf',
+            'marca' => 'Mercedes-Benz',
+            'modelo' => 'Sprinter 519 CDI',
+            'numero_placas' => 'SM-8841-A',
+            'pertenencia' => 'PROPIA',
+            'transporte_vehiculo_id' => $vSprinter->id,
+            'placas_documento_path' => 'unidades-transporte/sprinter-01/placas.pdf',
             'tarjeta_circulacion_documento_path' => 'unidades-transporte/sprinter-01/tarjeta.pdf',
-            'poliza_seguro_documento_path'       => 'unidades-transporte/sprinter-01/poliza.pdf',
-            'numero_poliza_seguro'        => 'POL-88121',
-            'vigencia_poliza_seguro'      => '2027-06-30',
+            'poliza_seguro_documento_path' => 'unidades-transporte/sprinter-01/poliza.pdf',
+            'numero_poliza_seguro' => 'POL-88121',
+            'vigencia_poliza_seguro' => '2027-06-30',
         ]);
 
         $uCamioneta = TransporteUnidad::create([
-            'marca'                   => 'Freightliner',
-            'modelo'                  => 'M2 106',
-            'numero_placas'           => 'SM-456-B',
-            'pertenencia'             => 'PROPIA',
-            'transporte_vehiculo_id'  => $vCamioneta->id,
-            'numero_poliza_seguro'    => 'POL-88772',
-            'vigencia_poliza_seguro'  => '2026-08-20',
+            'marca' => 'Freightliner',
+            'modelo' => 'M2 106',
+            'numero_placas' => 'SM-456-B',
+            'pertenencia' => 'PROPIA',
+            'transporte_vehiculo_id' => $vCamioneta->id,
+            'numero_poliza_seguro' => 'POL-88772',
+            'vigencia_poliza_seguro' => '2026-08-20',
         ]);
 
         $uVan = TransporteUnidad::create([
-            'marca'                  => 'Ram',
-            'modelo'                 => 'ProMaster City',
-            'numero_placas'          => null,
-            'pertenencia'            => 'RENTADA',
+            'marca' => 'Ram',
+            'modelo' => 'ProMaster City',
+            'numero_placas' => null,
+            'pertenencia' => 'RENTADA',
             'transporte_vehiculo_id' => $vVan->id,
             'tarjeta_circulacion_documento_path' => 'documents-transporte/van-rentada/tarjeta.pdf',
         ]);
 
         $uPickup = TransporteUnidad::create([
-            'marca'                 => 'Ford',
-            'modelo'                => 'F-150',
-            'numero_placas'         => 'SM-789-C',
-            'pertenencia'           => 'PROPIA',
+            'marca' => 'Ford',
+            'modelo' => 'F-150',
+            'numero_placas' => 'SM-789-C',
+            'pertenencia' => 'PROPIA',
             'transporte_vehiculo_id' => $vPickup->id,
-            'numero_poliza_seguro'  => 'POL-99003',
+            'numero_poliza_seguro' => 'POL-99003',
             'vigencia_poliza_seguro' => '2026-09-01',
         ]);
 
@@ -528,82 +530,82 @@ class DatosEjemploSeeder extends Seeder
         // ── 9. ANTICIPOS (se descuentan automáticamente en la nómina del período) ──
         Anticipo::create([
             'colaborador_id' => $carlos->id,
-            'monto'          => 500.00,
-            'concepto'       => 'Anticipo semana 01',
-            'fecha'          => $d(1),
-            'entregado_por'  => 'Administración',
+            'monto' => 500.00,
+            'concepto' => 'Anticipo semana 01',
+            'fecha' => $d(1),
+            'entregado_por' => 'Administración',
         ]);
 
         // Sofía: el concepto coincide por fuzzy-match con el evento → se descuenta en su nómina freelance del Festival.
         Anticipo::create([
             'colaborador_id' => $sofia->id,
-            'monto'          => 800.00,
-            'concepto'       => 'Festival de Verano 2026',
-            'fecha'          => $d(1),
-            'entregado_por'  => 'Producción',
+            'monto' => 800.00,
+            'concepto' => 'Festival de Verano 2026',
+            'fecha' => $d(1),
+            'entregado_por' => 'Producción',
         ]);
 
         // Luis: concepto vacío → NO se descuenta automáticamente.
         Anticipo::create([
             'colaborador_id' => $luis->id,
-            'monto'          => 600.00,
-            'concepto'       => null,
-            'fecha'          => $d(5),
-            'entregado_por'  => 'Producción',
+            'monto' => 600.00,
+            'concepto' => null,
+            'fecha' => $d(5),
+            'entregado_por' => 'Producción',
         ]);
 
         // Miguel en el período cerrado (se deduce en su nómina de conductor).
         Anticipo::create([
             'colaborador_id' => $miguel->id,
-            'monto'          => 350.00,
-            'concepto'       => 'Anticipo semana 01',
-            'fecha'          => $d(2),
-            'entregado_por'  => 'Administración',
+            'monto' => 350.00,
+            'concepto' => 'Anticipo semana 01',
+            'fecha' => $d(2),
+            'entregado_por' => 'Administración',
         ]);
 
         // Roberto: anticipo con fecha futura (semana 02) → NO se deduce de la semana cerrada
         // (ejemplo de agenda de anticipos que afectan períodos posteriores).
         Anticipo::create([
             'colaborador_id' => $roberto->id,
-            'monto'          => 400.00,
-            'concepto'       => 'Semana 02',
-            'fecha'          => $d(10),
-            'entregado_por'  => 'Administración',
+            'monto' => 400.00,
+            'concepto' => 'Semana 02',
+            'fecha' => $d(10),
+            'entregado_por' => 'Administración',
         ]);
 
         // ── 10. PRÉSTAMOS + CUOTAS (solo Base/Conductor; las cuotas se deducen por período) ──
         $pCarlos = Prestamo::create([
             'colaborador_id' => $carlos->id,
-            'monto_total'    => 15000.00,
-            'num_plazos'     => 6,
-            'periodicidad'   => 'SEMANAL',
-            'fecha_inicio'   => $d(3),
-            'concepto'       => 'Préstamo personal',
-            'autoriza'       => 'Administración',
+            'monto_total' => 15000.00,
+            'num_plazos' => 6,
+            'periodicidad' => 'SEMANAL',
+            'fecha_inicio' => $d(3),
+            'concepto' => 'Préstamo personal',
+            'autoriza' => 'Administración',
         ]);
         // Cuota 1 (03-jun) cae en la semana cerrada; las cuotas 2-6 quedan programadas adelante.
         $this->generarCuotas($pCarlos);
 
         $pAna = Prestamo::create([
             'colaborador_id' => $ana->id,
-            'monto_total'    => 5000.00,
-            'num_plazos'     => 5,
-            'periodicidad'   => 'MENSUAL',
-            'fecha_inicio'   => $d(1),
-            'concepto'       => 'Ajuste quincena',
-            'autoriza'       => 'Administración',
+            'monto_total' => 5000.00,
+            'num_plazos' => 5,
+            'periodicidad' => 'MENSUAL',
+            'fecha_inicio' => $d(1),
+            'concepto' => 'Ajuste quincena',
+            'autoriza' => 'Administración',
         ]);
         // Cuota 1 (01-jun) se ve deducida en la nómina en curso.
         $this->generarCuotas($pAna);
 
         $pMiguel = Prestamo::create([
             'colaborador_id' => $miguel->id,
-            'monto_total'    => 6000.00,
-            'num_plazos'     => 3,
-            'periodicidad'   => 'QUINCENAL',
-            'fecha_inicio'   => $d(2),
-            'concepto'       => 'Gasto familiar',
-            'autoriza'       => 'Administración',
+            'monto_total' => 6000.00,
+            'num_plazos' => 3,
+            'periodicidad' => 'QUINCENAL',
+            'fecha_inicio' => $d(2),
+            'concepto' => 'Gasto familiar',
+            'autoriza' => 'Administración',
         ]);
         $this->generarCuotas($pMiguel);
 
@@ -613,20 +615,20 @@ class DatosEjemploSeeder extends Seeder
 
         $calc = app(NominaCalculator::class);
         $inicioSemana = Carbon::parse($d(1));
-        $finSemana    = Carbon::parse($d(6));
+        $finSemana = Carbon::parse($d(6));
 
         // Base
-        $this->crearNominaBase($calc, $carlos,   $inicioSemana, $finSemana, 'PAGADO',   'Semana completa con Festival. Anticipo y 1 cuota de préstamo descontados.');
-        $this->crearNominaBase($calc, $ana,      $inicioSemana, $finSemana, 'PENDIENTE', 'Traslape al 50 % capturado por el admin; por autorizar.');
-        $this->crearNominaBase($calc, $roberto,  $inicioSemana, $finSemana, 'PAGADO',   null);
+        $this->crearNominaBase($calc, $carlos, $inicioSemana, $finSemana, 'PAGADO', 'Semana completa con Festival. Anticipo y 1 cuota de préstamo descontados.');
+        $this->crearNominaBase($calc, $ana, $inicioSemana, $finSemana, 'PENDIENTE', 'Traslape al 50 % capturado por el admin; por autorizar.');
+        $this->crearNominaBase($calc, $roberto, $inicioSemana, $finSemana, 'PAGADO', null);
 
         // Freelance (por evento)
         $this->crearNominaFreelance($calc, $sofia, $festival, 'PENDIENTE', '75% por etapas (Desmontaje pendiente de validar).');
-        $this->crearNominaFreelance($calc, $luis,  $festival, 'PAGADO',    '100% de etapas. Anticipo sin descuento (concepto vacío).');
-        $this->crearNominaFreelance($calc, $luis,  $feria,    'PENDIENTE', 'Sin asignación previa, se cae por asistencia registrada.');
+        $this->crearNominaFreelance($calc, $luis, $festival, 'PAGADO', '100% de etapas. Anticipo sin descuento (concepto vacío).');
+        $this->crearNominaFreelance($calc, $luis, $feria, 'PENDIENTE', 'Sin asignación previa, se cae por asistencia registrada.');
 
         // Conductores
-        $this->crearNominaConductor($calc, $miguel,  $inicioSemana, $finSemana, 'PAGADO',   'Rutas semanal + standby + anticipo.');
+        $this->crearNominaConductor($calc, $miguel, $inicioSemana, $finSemana, 'PAGADO', 'Rutas semanal + standby + anticipo.');
         $this->crearNominaConductor($calc, $patricia, $inicioSemana, $finSemana, 'PENDIENTE', 'Espera semana; standby incluido.');
 
         // Conductores base (sueldo semanal + rutas)
@@ -634,95 +636,95 @@ class DatosEjemploSeeder extends Seeder
 
         // ── 12. SERVICIOS PROFESIONALES (separadas de nómina) ──────────────────
         ServicioProfesional::create([
-            'nombre'    => 'Juan',
+            'nombre' => 'Juan',
             'apellidos' => 'Pérez Villanueva',
-            'tipo'      => 'RIGGER',
+            'tipo' => 'RIGGER',
             'evento_id' => $festival->id,
-            'concepto'  => 'Servicio de rigging para grúas de iluminación',
-            'monto'     => 2000.00,
-            'fecha'     => $d(2),
-            'autoriza'  => 'Dirección de Producción',
+            'concepto' => 'Servicio de rigging para grúas de iluminación',
+            'monto' => 2000.00,
+            'fecha' => $d(2),
+            'autoriza' => 'Dirección de Producción',
         ]);
 
         ServicioProfesional::create([
-            'nombre'    => 'María',
+            'nombre' => 'María',
             'apellidos' => 'López Gutiérrez',
-            'tipo'      => 'OPERADOR_AUDIO',
+            'tipo' => 'OPERADOR_AUDIO',
             'evento_id' => $concierto->id,
-            'concepto'  => 'Operación de consola de audio FOH',
-            'monto'     => 1800.00,
-            'fecha'     => $d(5),
-            'autoriza'  => 'Coordinación Técnica',
+            'concepto' => 'Operación de consola de audio FOH',
+            'monto' => 1800.00,
+            'fecha' => $d(5),
+            'autoriza' => 'Coordinación Técnica',
         ]);
 
         ServicioProfesional::create([
-            'nombre'    => 'Arturo',
+            'nombre' => 'Arturo',
             'apellidos' => 'Vázquez Moreno',
-            'tipo'      => 'OPERADOR_VIDEO',
+            'tipo' => 'OPERADOR_VIDEO',
             'evento_id' => $feria->id,
-            'concepto'  => 'Operación de sistema de video y pantallas LED',
-            'monto'     => 2500.00,
-            'fecha'     => $d(8),
-            'autoriza'  => null,
+            'concepto' => 'Operación de sistema de video y pantallas LED',
+            'monto' => 2500.00,
+            'fecha' => $d(8),
+            'autoriza' => null,
         ]);
 
         ServicioProfesional::create([
-            'nombre'    => 'Fernanda',
-            'tipo'      => 'RIGGER',
+            'nombre' => 'Fernanda',
+            'tipo' => 'RIGGER',
             'evento_id' => null,
-            'concepto'  => 'Consultoría estructural para montaje en bodega',
-            'monto'     => 3500.00,
-            'fecha'     => $d(20),
-            'autoriza'  => 'Gerencia',
+            'concepto' => 'Consultoría estructural para montaje en bodega',
+            'monto' => 3500.00,
+            'fecha' => $d(20),
+            'autoriza' => 'Gerencia',
         ]);
 
         // ── 13. VIÁTICOS (siempre ligados a un evento; colaborador opcional) ───
         Viatico::create([
             'colaborador_id' => $carlos->id,
-            'nombre'         => null,
-            'apellidos'      => null,
-            'tipo'           => 'TRANSPORTE',
-            'evento_id'      => $festival->id,
-            'concepto'       => 'Traslado de equipo de audio',
-            'monto'          => 1850.00,
-            'fecha'          => $d(2),
-            'autoriza'       => 'Dirección de Producción',
+            'nombre' => null,
+            'apellidos' => null,
+            'tipo' => 'TRANSPORTE',
+            'evento_id' => $festival->id,
+            'concepto' => 'Traslado de equipo de audio',
+            'monto' => 1850.00,
+            'fecha' => $d(2),
+            'autoriza' => 'Dirección de Producción',
         ]);
 
         Viatico::create([
             'colaborador_id' => $sofia->id,
-            'nombre'         => null,
-            'apellidos'      => null,
-            'tipo'           => 'HOSPEDAJE',
-            'evento_id'      => $festival->id,
-            'concepto'       => 'Hospedaje nocturno para staff',
-            'monto'          => 2600.00,
-            'fecha'          => $d(3),
-            'autoriza'       => 'Coordinación',
+            'nombre' => null,
+            'apellidos' => null,
+            'tipo' => 'HOSPEDAJE',
+            'evento_id' => $festival->id,
+            'concepto' => 'Hospedaje nocturno para staff',
+            'monto' => 2600.00,
+            'fecha' => $d(3),
+            'autoriza' => 'Coordinación',
         ]);
 
         Viatico::create([
             'colaborador_id' => null,
-            'nombre'         => 'Equipo boda',
-            'apellidos'      => null,
-            'tipo'           => 'ALIMENTOS',
-            'evento_id'      => $boda->id,
-            'concepto'       => 'Comida para staff del evento',
-            'monto'          => 3200.00,
-            'fecha'          => $d(5),
-            'autoriza'       => null,
+            'nombre' => 'Equipo boda',
+            'apellidos' => null,
+            'tipo' => 'ALIMENTOS',
+            'evento_id' => $boda->id,
+            'concepto' => 'Comida para staff del evento',
+            'monto' => 3200.00,
+            'fecha' => $d(5),
+            'autoriza' => null,
         ]);
 
         Viatico::create([
             'colaborador_id' => $ana->id,
-            'nombre'         => null,
-            'apellidos'      => null,
-            'tipo'           => 'CASETAS_GASOLINA',
-            'evento_id'      => $concierto->id,
-            'concepto'       => 'Combustible para traslados',
-            'monto'          => 800.00,
-            'fecha'          => $d(5),
-            'autoriza'       => 'Coordinación Técnica',
+            'nombre' => null,
+            'apellidos' => null,
+            'tipo' => 'CASETAS_GASOLINA',
+            'evento_id' => $concierto->id,
+            'concepto' => 'Combustible para traslados',
+            'monto' => 800.00,
+            'fecha' => $d(5),
+            'autoriza' => 'Coordinación Técnica',
         ]);
     }
 
@@ -748,20 +750,20 @@ class DatosEjemploSeeder extends Seeder
         ?string $extras = null,
     ): void {
         RegistroNormalizado::create([
-            'colaborador_id'       => $colaboradorId,
-            'tipo_actividad'       => $tipoActividad,
-            'actividad'            => $actividad,
-            'evento_raw'           => $eventoRaw,
-            'etapa'                => $etapa,
-            'vehiculo'             => $vehiculo,
-            'distancia'            => $distancia,
+            'colaborador_id' => $colaboradorId,
+            'tipo_actividad' => $tipoActividad,
+            'actividad' => $actividad,
+            'evento_raw' => $eventoRaw,
+            'etapa' => $etapa,
+            'vehiculo' => $vehiculo,
+            'distancia' => $distancia,
             'transporte_unidad_id' => $unidadId,
-            'origen'               => $origen,
-            'destino'              => $destino,
-            'extras'               => $extras,
-            'fecha'                => $fecha,
-            'hora'                 => $hora,
-            'hora_salida'          => $horaSalida,
+            'origen' => $origen,
+            'destino' => $destino,
+            'extras' => $extras,
+            'fecha' => $fecha,
+            'hora' => $hora,
+            'hora_salida' => $horaSalida,
         ]);
     }
 
@@ -781,14 +783,14 @@ class DatosEjemploSeeder extends Seeder
     ): void {
         JornadaConsolidada::create([
             'colaborador_id' => $colaboradorId,
-            'fecha'          => $fecha,
-            'entrada'        => $entrada,
-            'salida'         => $salida,
-            'detalle'        => $detalle,
-            'extras'         => $extras,
-            'tipo_pago'      => $tipoPago,
-            'traslape_pct'   => $tipoPago === 'TRASLAPE' ? $traslapePct : null,
-            'validado'       => $validado,
+            'fecha' => $fecha,
+            'entrada' => $entrada,
+            'salida' => $salida,
+            'detalle' => $detalle,
+            'extras' => $extras,
+            'tipo_pago' => $tipoPago,
+            'traslape_pct' => $tipoPago === 'TRASLAPE' ? $traslapePct : null,
+            'validado' => $validado,
         ]);
     }
 
@@ -803,17 +805,17 @@ class DatosEjemploSeeder extends Seeder
 
         for ($n = 1; $n <= $prestamo->num_plazos; $n++) {
             $fechaPlazo = match ($prestamo->periodicidad) {
-                'SEMANAL'   => $fechaInicio->copy()->addWeeks($n - 1),
-                'QUINCENAL' => $fechaInicio->copy()->addDays(15 * ($n - 1)),
-                'MENSUAL'   => $fechaInicio->copy()->addMonths($n - 1),
+                PeriodicidadPrestamo::Semanal => $fechaInicio->copy()->addWeeks($n - 1),
+                PeriodicidadPrestamo::Quincenal => $fechaInicio->copy()->addDays(15 * ($n - 1)),
+                PeriodicidadPrestamo::Mensual => $fechaInicio->copy()->addMonths($n - 1),
             };
 
             PrestamoCuota::create([
-                'prestamo_id'      => $prestamo->id,
-                'numero_plazo'     => $n,
-                'monto'            => $n === $prestamo->num_plazos ? $montoUltima : $montoCuota,
+                'prestamo_id' => $prestamo->id,
+                'numero_plazo' => $n,
+                'monto' => $n === $prestamo->num_plazos ? $montoUltima : $montoCuota,
                 'fecha_programada' => $fechaPlazo->format('Y-m-d'),
-                'estado'           => 'PENDIENTE',
+                'estado' => 'PENDIENTE',
             ]);
         }
     }
@@ -834,8 +836,8 @@ class DatosEjemploSeeder extends Seeder
     ): void {
         $desglose = match (true) {
             $evento !== null => $calc->calcularFreelance($col, $evento),
-            $col->tipo === 'CONDUCTOR'      => $calc->calcularConductor($col, $inicio, $fin),
-            $col->tipo === 'CONDUCTOR BASE' => $calc->calcularConductorBase($col, $inicio, $fin),
+            $col->tipo === TipoColaborador::Conductor => $calc->calcularConductor($col, $inicio, $fin),
+            $col->tipo === TipoColaborador::ConductorBase => $calc->calcularConductorBase($col, $inicio, $fin),
             default => $calc->calcularBase($col, $inicio, $fin),
         };
 
@@ -846,27 +848,29 @@ class DatosEjemploSeeder extends Seeder
         );
 
         $nomina = HistoricoNomina::create([
-            'colaborador_id'   => $col->id,
+            'colaborador_id' => $col->id,
             'tipo_colaborador' => $desglose['tipo_colaborador'],
-            'periodo_inicio'   => $desglose['periodo_inicio'],
-            'periodo_fin'      => $desglose['periodo_fin'],
-            'evento_id'        => $desglose['evento_id'],
-            'dias'             => $desglose['dias'],
-            'sueldo_diario'    => $desglose['sueldo_diario'],
-            'total_base'       => $desglose['total_base'],
-            'bonos_evento'     => $desglose['bonos_evento'],
-            'compensaciones'   => $desglose['compensaciones'],
-            'anticipos'        => $desglose['anticipos'],
-            'prestamos'        => $desglose['prestamos'] ?? 0,
-            'total_final'      => $desglose['total_final'],
-            'comentario'       => $comentario,
-            'estado'           => $estado,
-            'fecha_calculo'    => now(),
-            'desglose'         => $desgloseInterno,
+            'periodo_inicio' => $desglose['periodo_inicio'],
+            'periodo_fin' => $desglose['periodo_fin'],
+            'evento_id' => $desglose['evento_id'],
+            'dias' => $desglose['dias'],
+            'sueldo_diario' => $desglose['sueldo_diario'],
+            'total_base' => $desglose['total_base'],
+            'bonos_evento' => $desglose['bonos_evento'],
+            'compensaciones' => $desglose['compensaciones'],
+            'anticipos' => $desglose['anticipos'],
+            'prestamos' => $desglose['prestamos'] ?? 0,
+            'total_final' => $desglose['total_final'],
+            'comentario' => $comentario,
+            'estado' => $estado,
+            'fecha_calculo' => now(),
+            'desglose' => $desgloseInterno,
         ]);
 
-        $cuotaIds = collect($desglose['_prestamo_detalle'] ?? [])->pluck('id')->all();
-        if (!empty($cuotaIds)) {
+        /** @var array<int, array{id: int}> $prestamoDetalle */
+        $prestamoDetalle = $desglose['_prestamo_detalle'] ?? [];
+        $cuotaIds = collect($prestamoDetalle)->pluck('id')->all();
+        if (! empty($cuotaIds)) {
             PrestamoCuota::whereIn('id', $cuotaIds)->update(['historico_nomina_id' => $nomina->id]);
         }
 

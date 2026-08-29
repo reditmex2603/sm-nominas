@@ -17,24 +17,25 @@ class Branding
 
     public static function colorPrimario(): ?string
     {
-        return static::normalizarHex(ParametroSistema::get(static::CLAVE_COLOR_PRIMARIO));
+        return self::normalizarHex(ParametroSistema::get(self::CLAVE_COLOR_PRIMARIO));
     }
 
     public static function colorSidebar(): ?string
     {
-        return static::normalizarHex(ParametroSistema::get(static::CLAVE_COLOR_SIDEBAR));
+        return self::normalizarHex(ParametroSistema::get(self::CLAVE_COLOR_SIDEBAR));
     }
 
     public static function logoUrl(): ?string
     {
-        return static::urlDePath(ParametroSistema::get(static::CLAVE_LOGO));
+        return self::urlDePath(ParametroSistema::get(self::CLAVE_LOGO));
     }
 
     public static function isotipoUrl(): ?string
     {
-        return static::urlDePath(ParametroSistema::get(static::CLAVE_ISOTIPO));
+        return self::urlDePath(ParametroSistema::get(self::CLAVE_ISOTIPO));
     }
 
+    /** @return array<string, mixed> */
     public static function datos(): array
     {
         return [

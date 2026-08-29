@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\PeriodicidadPrestamo;
+use Database\Factories\PrestamoFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,6 +22,7 @@ use Illuminate\Support\Carbon;
  */
 class Prestamo extends Model
 {
+    /** @use HasFactory<PrestamoFactory> */
     use HasFactory;
 
     protected $fillable = [
@@ -42,11 +44,13 @@ class Prestamo extends Model
         ];
     }
 
+    /** @return BelongsTo<Colaborador, $this> */
     public function colaborador(): BelongsTo
     {
         return $this->belongsTo(Colaborador::class)->withTrashed();
     }
 
+    /** @return HasMany<PrestamoCuota, $this> */
     public function cuotas(): HasMany
     {
         return $this->hasMany(PrestamoCuota::class)->orderBy('numero_plazo');

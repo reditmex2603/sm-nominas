@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\EstadoCuota;
+use Database\Factories\PrestamoCuotaFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,6 +21,7 @@ use Illuminate\Support\Carbon;
  */
 class PrestamoCuota extends Model
 {
+    /** @use HasFactory<PrestamoCuotaFactory> */
     use HasFactory;
 
     protected $table = 'prestamo_cuotas';
@@ -44,11 +46,13 @@ class PrestamoCuota extends Model
         ];
     }
 
+    /** @return BelongsTo<Prestamo, $this> */
     public function prestamo(): BelongsTo
     {
         return $this->belongsTo(Prestamo::class);
     }
 
+    /** @return BelongsTo<HistoricoNomina, $this> */
     public function historicoNomina(): BelongsTo
     {
         return $this->belongsTo(HistoricoNomina::class);

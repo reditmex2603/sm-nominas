@@ -3,50 +3,28 @@
 namespace App\Http\Controllers;
 
 use App\Enums\RolUsuario;
+use App\Http\Requests\StoreUsuarioRequest;
+use App\Http\Requests\UpdateUsuarioRequest;
 use App\Models\User;
+use App\Support\Modulos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class UsuarioController extends Controller
 {
-    /** Módulos del sistema y su etiqueta. Cada uno exige su permiso para acceder. */
-    public const MODULOS = [
-        'validacion' => 'Panel Validación',
-        'colaboradores' => 'Colaboradores',
-        'eventos' => 'Eventos',
-        'transportes' => 'Transportes',
-        'anticipos' => 'Anticipos',
-        'prestamos' => 'Préstamos',
-        'servicios-profesionales' => 'Servicios Profesionales',
-        'viaticos' => 'Viáticos',
-        'historial' => 'Historial',
-        'registro-asistencia' => 'Registro de Asistencia',
-        'nomina' => 'Nómina y Jornadas',
-        'manual' => 'Manual de usuario',
-    ];
-
     public function index(): Response
     {
         return Inertia::render('parametros/Usuarios', [
             'usuarios' => User::orderBy('name')->get(['id', 'name', 'email', 'rol', 'permisos']),
-            'modulos' => self::MODULOS,
+            'modulos' => Modulos::MODULOS,
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreUsuarioRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:users,email',
-            'password' => ['required', 'string', Password::defaults()],
-            'rol' => 'required|in:supervisor,capturista',
-            'permisos' => 'array',
-            'permisos.*' => Rule::in(array_keys(self::MODULOS)),
-        ]);
+        $validated = $request->validated();
 
         $usuario = User::create([
             'name' => $validated['name'],
@@ -66,18 +44,11 @@ class UsuarioController extends Controller
         return back();
     }
 
-    public function update(Request $request, User $usuario): RedirectResponse
+    public function update(UpdateUsuarioRequest $request, User $usuario): RedirectResponse
     {
         $this->authorizeNoAdmin($usuario);
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($usuario->id)],
-            'password' => ['nullable', 'string', Password::defaults()],
-            'rol' => 'required|in:supervisor,capturista',
-            'permisos' => 'array',
-            'permisos.*' => Rule::in(array_keys(self::MODULOS)),
-        ]);
+        $validated = $request->validated();
 
         $data = [
             'name' => $validated['name'],

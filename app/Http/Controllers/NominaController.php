@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Enums\EstadoNomina;
+use App\Http\Requests\CalcularNominaRequest;
+use App\Http\Requests\FreelanceDatosRequest;
+use App\Http\Requests\GuardarNominaRequest;
 use App\Models\Colaborador;
 use App\Models\Evento;
 use App\Models\HistoricoNomina;
@@ -20,7 +23,7 @@ use Inertia\Inertia;
 
 class NominaController extends Controller
 {
-    public function calcular(Request $request, NominaCalculator $calc): JsonResponse
+    public function calcular(CalcularNominaRequest $request, NominaCalculator $calc): JsonResponse
     {
         $tipo = $request->input('tipo');
         $ini = null;
@@ -28,14 +31,10 @@ class NominaController extends Controller
         $evento = null;
 
         if (in_array($tipo, ['COLABORADOR BASE', 'CONDUCTOR', 'CONDUCTOR BASE'], true)) {
-            $validated = $request->validate([
-                'tipo' => 'required|string',
-                'colaborador_id' => 'required|exists:colaboradores,id',
-                'inicio' => 'required|date',
-                'fin' => 'required|date|after_or_equal:inicio',
-                'compensacion' => 'nullable|numeric',
-            ]);
+            /** @var array{tipo: string, colaborador_id: int, inicio: string, fin: string, compensacion?: mixed} $validated */
+            $validated = $request->validated();
 
+            /** @var Colaborador $col */
             $col = Colaborador::findOrFail($validated['colaborador_id']);
             $ini = Carbon::parse($validated['inicio']);
             $fin = Carbon::parse($validated['fin']);
@@ -48,15 +47,12 @@ class NominaController extends Controller
             };
 
         } elseif ($tipo === 'FREELANCE') {
-            $validated = $request->validate([
-                'tipo' => 'required|string',
-                'colaborador_id' => 'required|exists:colaboradores,id',
-                'evento_id' => 'required|exists:eventos,id',
-                'dias_adicionales' => 'nullable|integer|min:0',
-                'compensacion' => 'nullable|numeric',
-            ]);
+            /** @var array{tipo: string, colaborador_id: int, evento_id: int, dias_adicionales?: int, compensacion?: mixed} $validated */
+            $validated = $request->validated();
 
+            /** @var Colaborador $col */
             $col = Colaborador::findOrFail($validated['colaborador_id']);
+            /** @var Evento $evento */
             $evento = Evento::findOrFail($validated['evento_id']);
             $comp = (float) ($validated['compensacion'] ?? 0);
 
@@ -76,7 +72,7 @@ class NominaController extends Controller
         return response()->json(array_merge($desglose, ['jornadas_sin_validar' => $sinValidar]));
     }
 
-    public function guardar(Request $request, NominaCalculator $calc): RedirectResponse
+    public function guardar(GuardarNominaRequest $request, NominaCalculator $calc): RedirectResponse
     {
         $tipo = $request->input('tipo');
         $ini = null;
@@ -84,15 +80,10 @@ class NominaController extends Controller
         $evento = null;
 
         if (in_array($tipo, ['COLABORADOR BASE', 'CONDUCTOR', 'CONDUCTOR BASE'], true)) {
-            $validated = $request->validate([
-                'tipo' => 'required|string',
-                'colaborador_id' => 'required|exists:colaboradores,id',
-                'inicio' => 'required|date',
-                'fin' => 'required|date|after_or_equal:inicio',
-                'compensacion' => 'nullable|numeric',
-                'comentario' => 'nullable|string|max:2000',
-            ]);
+            /** @var array{tipo: string, colaborador_id: int, inicio: string, fin: string, compensacion?: mixed, comentario?: string|null} $validated */
+            $validated = $request->validated();
 
+            /** @var Colaborador $col */
             $col = Colaborador::findOrFail($validated['colaborador_id']);
             $ini = Carbon::parse($validated['inicio']);
             $fin = Carbon::parse($validated['fin']);
@@ -105,16 +96,12 @@ class NominaController extends Controller
             };
 
         } else {
-            $validated = $request->validate([
-                'tipo' => 'required|string',
-                'colaborador_id' => 'required|exists:colaboradores,id',
-                'evento_id' => 'required|exists:eventos,id',
-                'dias_adicionales' => 'nullable|integer|min:0',
-                'compensacion' => 'nullable|numeric',
-                'comentario' => 'nullable|string|max:2000',
-            ]);
+            /** @var array{tipo: string, colaborador_id: int, evento_id: int, dias_adicionales?: int, compensacion?: mixed, comentario?: string|null} $validated */
+            $validated = $request->validated();
 
+            /** @var Colaborador $col */
             $col = Colaborador::findOrFail($validated['colaborador_id']);
+            /** @var Evento $evento */
             $evento = Evento::findOrFail($validated['evento_id']);
             $comp = (float) ($validated['compensacion'] ?? 0);
 
@@ -178,7 +165,9 @@ class NominaController extends Controller
 
         // Liga las cuotas de préstamo incluidas en este cálculo a la nómina — quedan PENDIENTE
         // hasta que la nómina se marque PAGADO (ver pagar()). Solo aplica a Base/Conductor.
-        $cuotaIds = collect($desglose['_prestamo_detalle'] ?? [])->pluck('id');
+        /** @var array<int, array{id: int}> $prestamoDetalle */
+        $prestamoDetalle = $desglose['_prestamo_detalle'] ?? [];
+        $cuotaIds = collect($prestamoDetalle)->pluck('id');
         if ($cuotaIds->isNotEmpty()) {
             PrestamoCuota::whereIn('id', $cuotaIds)->update(['historico_nomina_id' => $nomina->id]);
         }
@@ -189,11 +178,9 @@ class NominaController extends Controller
     }
 
     /** Eventos con asistencia registrada por el colaborador y sus registros editables, agrupados por evento. */
-    public function freelanceDatos(Request $request): JsonResponse
+    public function freelanceDatos(FreelanceDatosRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'colaborador_id' => 'required|exists:colaboradores,id',
-        ]);
+        $validated = $request->validated();
 
         $registros = RegistroNormalizado::where('colaborador_id', $validated['colaborador_id'])
             ->where('tipo_actividad', 'Evento')
@@ -223,7 +210,7 @@ class NominaController extends Controller
                 'extras' => $r->extras,
                 'comentarios' => $r->comentarios,
                 'evidencia_url' => Documentos::url($r->evidencia_path),
-                'jornada_validada' => (bool) ($jornadasPorFecha->get($r->fecha->format('Y-m-d'))?->validado ?? false),
+                'jornada_validada' => (bool) optional($jornadasPorFecha->get($r->fecha->format('Y-m-d')))->validado,
             ])->values();
         }
 
@@ -283,6 +270,10 @@ class NominaController extends Controller
     }
 
     /** Clave para updateOrCreate: evita duplicar nóminas del mismo periodo. */
+    /**
+     * @param  array<string, mixed>  $d
+     * @return array<string, int|string>
+     */
     private function claveUnica(array $d): array
     {
         $base = ['colaborador_id' => $d['colaborador_id']];

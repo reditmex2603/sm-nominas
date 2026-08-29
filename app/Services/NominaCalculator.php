@@ -25,11 +25,13 @@ class NominaCalculator
         private readonly CalculadorConductorBase $conductorBase,
     ) {}
 
+    /** @return array<string, mixed> */
     public function calcularBase(Colaborador $col, Carbon $inicio, Carbon $fin, float $compensacion = 0): array
     {
         return $this->base->calcular($col, $inicio, $fin, $compensacion);
     }
 
+    /** @return array<string, mixed> */
     public function calcularFreelance(
         Colaborador $col,
         Evento $evento,
@@ -39,11 +41,13 @@ class NominaCalculator
         return $this->freelance->calcular($col, $evento, $diasAdicionales, $compensacion);
     }
 
+    /** @return array<string, mixed> */
     public function calcularConductor(Colaborador $col, Carbon $inicio, Carbon $fin, float $compensacion = 0): array
     {
         return $this->conductor->calcular($col, $inicio, $fin, $compensacion);
     }
 
+    /** @return array<string, mixed> */
     public function calcularConductorBase(Colaborador $col, Carbon $inicio, Carbon $fin, float $compensacion = 0): array
     {
         return $this->conductorBase->calcular($col, $inicio, $fin, $compensacion);

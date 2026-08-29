@@ -18,6 +18,7 @@ use App\Models\PrestamoCuota;
 use App\Models\RegistroNormalizado;
 use App\Services\FuzzyMatcher;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Base común de los calculadores de nómina: comparte los helpers de consulta a BD
@@ -47,6 +48,7 @@ abstract class AbstractCalculadorNomina
         ],
     ];
 
+    /** @return \Illuminate\Database\Eloquent\Collection<int, JornadaConsolidada> */
     protected function jornadasValidadas(int $colaboradorId, Carbon $inicio, Carbon $fin)
     {
         return JornadaConsolidada::where('colaborador_id', $colaboradorId)
@@ -88,6 +90,7 @@ abstract class AbstractCalculadorNomina
      * `historico_nomina_id IS NULL`, la segunda vez que se guarda la misma nómina no encontraría
      * nada porque la cuota ya quedó ligada a esa nómina desde el primer guardado).
      */
+    /** @return array{total: float, detalle: array<int, array<string, mixed>>} */
     protected function prestamosEnRango(int $colaboradorId, Carbon $inicio, Carbon $fin, ?int $nominaActualId): array
     {
         $cuotas = PrestamoCuota::whereHas('prestamo', fn ($q) => $q->where('colaborador_id', $colaboradorId))
@@ -131,6 +134,7 @@ abstract class AbstractCalculadorNomina
     }
 
     /** Bono del séptimo día: suma un sueldo diario por cada semana (lun-sáb) con los días requeridos. */
+    /** @param  \Illuminate\Database\Eloquent\Collection<int, JornadaConsolidada>  $jornadas */
     protected function bonoSeptimoDia(Colaborador $col, $jornadas): float
     {
         $diasBonoSeptimo = (int) ParametroSistema::get('dias_bono_septimo', 6);
@@ -156,7 +160,12 @@ abstract class AbstractCalculadorNomina
         return $bonoSeptimoDia;
     }
 
-    /** Aplana etapas combinadas en un solo registro (ej. "Montaje, Show") y quita duplicados. */
+    /**
+     * Aplana etapas combinadas en un solo registro (ej. "Montaje, Show") y quita duplicados.
+     *
+     * @param  iterable<mixed>  $etapasCrudas
+     * @return Collection<int, non-falsy-string>
+     */
     protected function etapasUnicas($etapasCrudas)
     {
         return collect($etapasCrudas)
@@ -168,12 +177,14 @@ abstract class AbstractCalculadorNomina
     }
 
     /** Suma el % de cada etapa (Montaje 25%, Show 50%, Desmontaje 25%), topado en 100%. */
+    /** @param  iterable<string>  $etapasUnicas */
     protected function pctDeEtapas($etapasUnicas): float
     {
         return min(1.0, collect($etapasUnicas)->sum(fn ($e) => EtapaEvento::tryFrom($e)?->porcentaje() ?? 0));
     }
 
     /** Registros de asistencia del colaborador para ese evento, con si su jornada ya está validada. */
+    /** @return Collection<int, array{fecha: mixed, etapa: mixed, extras: mixed, contabiliza: bool}> */
     protected function registrosDeEvento(int $colaboradorId, Evento $evento)
     {
         $fechasValidas = JornadaConsolidada::where('colaborador_id', $colaboradorId)

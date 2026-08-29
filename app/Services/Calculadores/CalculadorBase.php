@@ -12,6 +12,7 @@ use App\Models\RegistroNormalizado;
 use App\Services\FuzzyMatcher;
 use App\Support\Money;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Nómina del personal Base: sueldo semanal condicionado a asistencia (L–S), bono de
@@ -19,6 +20,7 @@ use Illuminate\Support\Carbon;
  */
 class CalculadorBase extends AbstractCalculadorNomina
 {
+    /** @return array<string, mixed> */
     public function calcular(Colaborador $col, Carbon $inicio, Carbon $fin, float $compensacion = 0): array
     {
         $jornadas = $this->jornadasValidadas($col->id, $inicio, $fin);
@@ -32,12 +34,14 @@ class CalculadorBase extends AbstractCalculadorNomina
         // Si el colaborador solo asistió al evento ese día (sin registrar actividad de bodega),
         // igual recibe el día completo (sueldo_diario × fracción del tipo_pago) MÁS el extra de
         // categoría ponderado por su % de participación en las etapas — no se le quita el día.
+        /** @var Collection<string, Collection<int, RegistroNormalizado>> $registrosEventoPorFecha */
         $registrosEventoPorFecha = RegistroNormalizado::where('colaborador_id', $col->id)
             ->where('tipo_actividad', 'Evento')
             ->whereBetween('fecha', [$inicio->format('Y-m-d'), $fin->format('Y-m-d')])
             ->get()
             ->groupBy(fn ($r) => $r->fecha->format('Y-m-d'));
 
+        /** @var Collection<int, array{eventos_dia: array<int, array<string, mixed>>}> $evaluaciones */
         $evaluaciones = $jornadas
             ->sortBy('fecha')
             ->map(fn ($j) => $this->evaluarDiaBase($j, $col->categoria, $col->nivel, $col->compensacion_pct, $registrosEventoPorFecha))
@@ -104,6 +108,12 @@ class CalculadorBase extends AbstractCalculadorNomina
      * cada evento se pondera y paga por separado según su propio % de etapas y su propio
      * tamaño (CHICO no genera bono), y los extras se suman.
      */
+    /** @param  Collection<string, Collection<int, RegistroNormalizado>>  $registrosEventoPorFecha */
+    /** @return array<string, mixed> */
+    /**
+     * @param  Collection<string, Collection<int, RegistroNormalizado>>  $registrosEventoPorFecha
+     * @return array<string, mixed>
+     */
     private function evaluarDiaBase(JornadaConsolidada $j, CategoriaColaborador|string|null $categoria, ?int $nivel, ?int $compensacionPct, $registrosEventoPorFecha): array
     {
         $fecha = Carbon::parse($j->fecha)->format('Y-m-d');
@@ -125,7 +135,7 @@ class CalculadorBase extends AbstractCalculadorNomina
             'extras' => $j->extras,
         ];
 
-        if ($fraccionEvento === 0) {
+        if ($fraccionEvento === 0.0) {
             return array_merge($base, [
                 'dia_fraccion' => $fraccionDia,
                 'bono_evento' => 0.0,

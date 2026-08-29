@@ -3,12 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Enums\EstadoCuota;
+use App\Enums\PeriodicidadPrestamo;
 use App\Enums\TipoColaborador;
+use App\Http\Requests\AplazarCuotasRequest;
+use App\Http\Requests\DistribuirCuotasRequest;
+use App\Http\Requests\StorePrestamoRequest;
 use App\Models\Colaborador;
 use App\Models\Prestamo;
 use App\Models\PrestamoCuota;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -30,18 +33,11 @@ class PrestamoController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StorePrestamoRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'colaborador_id' => 'required|exists:colaboradores,id',
-            'monto_total' => 'required|numeric|min:0.01',
-            'num_plazos' => 'required|integer|min:1|max:52',
-            'periodicidad' => 'required|in:SEMANAL,QUINCENAL,MENSUAL',
-            'fecha_inicio' => 'required|date',
-            'concepto' => 'nullable|string|max:500',
-            'autoriza' => 'nullable|string|max:255',
-        ]);
+        $validated = $request->validated();
 
+        /** @var Colaborador $colaborador */
         $colaborador = Colaborador::findOrFail($validated['colaborador_id']);
         if (in_array($colaborador->tipo, [TipoColaborador::Base, TipoColaborador::Conductor, TipoColaborador::ConductorBase], true)) {
             DB::transaction(function () use ($validated) {
@@ -117,13 +113,9 @@ class PrestamoController extends Controller
      * (`historico_nomina_id` nulo): si ya están dentro de un cálculo congelado, el admin debe
      * eliminar/recalcular esa nómina primero.
      */
-    public function aplazar(Request $request): RedirectResponse
+    public function aplazar(AplazarCuotasRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'cuota_ids' => ['required', 'array', 'min:1'],
-            'cuota_ids.*' => ['integer', 'exists:prestamo_cuotas,id'],
-            'nueva_fecha' => ['required', 'date', 'after_or_equal:today'],
-        ]);
+        $validated = $request->validated();
 
         $ids = array_map('intval', $validated['cuota_ids']);
         $cuotas = PrestamoCuota::whereIn('id', $ids)->get();
@@ -165,12 +157,9 @@ class PrestamoController extends Controller
      * modo que el saldo total del préstamo no cambia. Aplica solo a cuotas PENDIENTE y sin ligar a
      * una nómina guardada.
      */
-    public function distribuir(Request $request): RedirectResponse
+    public function distribuir(DistribuirCuotasRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'cuota_ids' => ['required', 'array', 'min:1'],
-            'cuota_ids.*' => ['integer', 'exists:prestamo_cuotas,id'],
-        ]);
+        $validated = $request->validated();
 
         $ids = array_map('intval', $validated['cuota_ids']);
         $seleccionadas = PrestamoCuota::with('prestamo:id,concepto')
@@ -250,9 +239,9 @@ class PrestamoController extends Controller
 
         for ($n = 1; $n <= $prestamo->num_plazos; $n++) {
             $fechaPlazo = match ($prestamo->periodicidad) {
-                'SEMANAL' => $fechaInicio->copy()->addWeeks($n - 1),
-                'QUINCENAL' => $fechaInicio->copy()->addDays(15 * ($n - 1)),
-                'MENSUAL' => $fechaInicio->copy()->addMonths($n - 1),
+                PeriodicidadPrestamo::Semanal => $fechaInicio->copy()->addWeeks($n - 1),
+                PeriodicidadPrestamo::Quincenal => $fechaInicio->copy()->addDays(15 * ($n - 1)),
+                PeriodicidadPrestamo::Mensual => $fechaInicio->copy()->addMonths($n - 1),
             };
 
             PrestamoCuota::create([

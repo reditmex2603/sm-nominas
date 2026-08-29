@@ -13,6 +13,7 @@ use Illuminate\Support\Collection;
 
 class JornadaGenerator
 {
+    /** @var Collection<int, Evento> */
     private Collection $eventos;
 
     /** @return string[] Lista de errores detectados */
@@ -186,7 +187,7 @@ class JornadaGenerator
         // Un día puede tener registros de más de un evento (el colaborador participó
         // parcialmente en dos eventos distintos el mismo día) — extraer todos los nombres.
         preg_match_all('/^Evento: (.+?) - /m', $detalle, $matches);
-        $nombresEventos = $matches[1] ?? [];
+        $nombresEventos = $matches[1];
 
         if (in_array('NO IDENTIFICADO', $nombresEventos, true)) {
             return TipoPago::ErrorEvento->value;

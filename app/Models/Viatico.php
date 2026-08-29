@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use Database\Factories\ViaticoFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Viatico extends Model
 {
+    /** @use HasFactory<ViaticoFactory> */
     use HasFactory;
 
     protected $table = 'viaticos';
@@ -32,11 +34,13 @@ class Viatico extends Model
         ];
     }
 
+    /** @return BelongsTo<Evento, $this> */
     public function evento(): BelongsTo
     {
         return $this->belongsTo(Evento::class);
     }
 
+    /** @return BelongsTo<Colaborador, $this> */
     public function colaborador(): BelongsTo
     {
         return $this->belongsTo(Colaborador::class)->withTrashed();

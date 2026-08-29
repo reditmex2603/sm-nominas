@@ -25,10 +25,6 @@ final class Money
      */
     public static function from(int|float|string $monto): self
     {
-        if ($monto instanceof self) {
-            return $monto;
-        }
-
         $monto = (string) $monto;
 
         // Normalizar a "N" o "N.XX" con hasta 2 decimales (trunca, no redondea).

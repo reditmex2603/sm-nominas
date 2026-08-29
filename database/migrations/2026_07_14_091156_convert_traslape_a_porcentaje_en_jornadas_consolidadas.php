@@ -68,6 +68,7 @@ return new class extends Migration
         });
     }
 
+    /** @param  array<int, string>  $valores */
     private function alterarTipoPago(array $valores): void
     {
         if (DB::getDriverName() === 'sqlite') {

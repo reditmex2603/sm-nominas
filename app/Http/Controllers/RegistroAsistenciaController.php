@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Enums\TipoColaborador;
+use App\Http\Requests\StoreRegistroAsistenciaRequest;
+use App\Http\Requests\UpdateRegistroAsistenciaRequest;
 use App\Models\Colaborador;
 use App\Models\Evento;
 use App\Models\HistoricoNomina;
@@ -13,7 +15,6 @@ use App\Models\TransporteUnidad;
 use App\Models\TransporteVehiculo;
 use App\Support\Documentos;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -91,26 +92,9 @@ class RegistroAsistenciaController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreRegistroAsistenciaRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'colaborador_id' => 'required|exists:colaboradores,id',
-            'tipo_actividad' => 'required|in:Bodega,Evento,Transporte',
-            'actividad' => 'nullable|string|max:500',
-            'evento_raw' => 'nullable|string|max:255',
-            'etapa' => 'nullable|string|max:100',
-            'vehiculo' => 'nullable|string|max:255',
-            'distancia' => 'nullable|string|max:255',
-            'transporte_unidad_id' => ['nullable', 'required_if:tipo_actividad,Transporte', 'exists:transporte_unidades,id'],
-            'origen' => 'nullable|string|max:255',
-            'destino' => 'nullable|string|max:255',
-            'extras' => 'nullable|string|max:2000',
-            'evidencia' => 'nullable|file|image|max:5120',
-            'comentarios' => 'nullable|string|max:1000',
-            'fecha' => 'required|date',
-            'hora' => 'required|date_format:H:i',
-            'hora_salida' => 'nullable|date_format:H:i',
-        ]);
+        $validated = $request->validated();
 
         if ($request->hasFile('evidencia')) {
             $validated['evidencia_path'] = $request->file('evidencia')->store('evidencias', 'documentos');
@@ -124,24 +108,9 @@ class RegistroAsistenciaController extends Controller
         return back();
     }
 
-    public function update(Request $request, RegistroNormalizado $registro): RedirectResponse
+    public function update(UpdateRegistroAsistenciaRequest $request, RegistroNormalizado $registro): RedirectResponse
     {
-        $validated = $request->validate([
-            'tipo_actividad' => 'sometimes|in:Bodega,Evento,Transporte',
-            'actividad' => 'nullable|string|max:500',
-            'evento_raw' => 'nullable|string|max:255',
-            'etapa' => 'nullable|string|max:100',
-            'vehiculo' => 'nullable|string|max:255',
-            'distancia' => 'nullable|string|max:255',
-            'transporte_unidad_id' => ['nullable', 'required_if:tipo_actividad,Transporte', 'exists:transporte_unidades,id'],
-            'origen' => 'nullable|string|max:255',
-            'destino' => 'nullable|string|max:255',
-            'extras' => 'nullable|string|max:2000',
-            'comentarios' => 'nullable|string|max:1000',
-            'fecha' => 'sometimes|date',
-            'hora' => 'sometimes|date_format:H:i',
-            'hora_salida' => 'nullable|date_format:H:i',
-        ]);
+        $validated = $request->validated();
 
         $registro->update($validated);
 

@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ActualizarColoresMarcaRequest;
+use App\Http\Requests\SubirLogoMarcaRequest;
 use App\Models\ParametroSistema;
 use App\Support\Branding;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -19,12 +20,9 @@ class MarcaController extends Controller
         ]);
     }
 
-    public function colores(Request $request): RedirectResponse
+    public function colores(ActualizarColoresMarcaRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'color_primario' => ['nullable', 'regex:/^#?[0-9A-Fa-f]{6}$/'],
-            'color_sidebar' => ['nullable', 'regex:/^#?[0-9A-Fa-f]{6}$/'],
-        ]);
+        $validated = $request->validated();
 
         if (isset($validated['color_primario']) && $validated['color_primario'] !== '') {
             ParametroSistema::set(Branding::CLAVE_COLOR_PRIMARIO, $validated['color_primario'], 'Color primario de la marca');
@@ -46,15 +44,11 @@ class MarcaController extends Controller
         return back();
     }
 
-    public function subirLogo(Request $request, string $cual): RedirectResponse
+    public function subirLogo(SubirLogoMarcaRequest $request, string $cual): RedirectResponse
     {
         abort_unless(in_array($cual, ['logo', 'isotipo'], true), 404);
 
-        $validated = $request->validate([
-            // Sin SVG: los SVG pueden embebir scripts que se ejecutan en el
-            // dominio del sitio cuando el usuario navega la imagen directamente.
-            'archivo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
-        ]);
+        $validated = $request->validated();
 
         $clave = $cual === 'logo' ? Branding::CLAVE_LOGO : Branding::CLAVE_ISOTIPO;
         $etiqueta = $cual === 'logo' ? 'logo' : 'isotipo';
