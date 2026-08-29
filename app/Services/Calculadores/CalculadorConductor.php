@@ -10,6 +10,7 @@ use App\Models\TransporteDistancia;
 use App\Models\TransporteTarifa;
 use App\Models\TransporteVehiculo;
 use App\Services\FuzzyMatcher;
+use App\Support\Money;
 use Illuminate\Support\Carbon;
 
 /**
@@ -25,7 +26,7 @@ class CalculadorConductor extends AbstractCalculadorNomina
         $distancias = TransporteDistancia::all();
 
         $rutas = [];
-        $totalRutas = 0.0;
+        $totalRutas = Money::fromCents(0);
 
         foreach ($jornadas as $j) {
             $tarifa = $this->detectarTarifa($j->detalle ?? '', $vehiculos, $distancias);
@@ -33,20 +34,21 @@ class CalculadorConductor extends AbstractCalculadorNomina
             // Traslape (2 eventos/rutas el mismo día): se paga el % que definió el admin de la
             // tarifa, no la ruta completa.
             $fraccion = $this->fraccionPago($j);
-            $tarifa['monto'] = round($tarifa['monto'] * $fraccion, 2);
+            $montoRuta = Money::from($tarifa['monto'])->multiplicarPor($fraccion);
+            $tarifa['monto'] = $montoRuta->toFloat();
 
-            $totalRutas += $tarifa['monto'];
+            $totalRutas = $totalRutas->sumar($montoRuta);
             $rutas[] = array_merge($tarifa, ['fecha' => $j->fecha->format('Y-m-d'), 'detalle' => $j->detalle, 'extras' => $j->extras]);
         }
 
         $existente = $this->nomina($col->id, null, $inicio, $fin);
 
-        $anticipos = $this->anticiposEnRango($col->id, $inicio, $fin);
+        $anticipos = Money::from($this->anticiposEnRango($col->id, $inicio, $fin));
 
         $prestamosInfo = $this->prestamosEnRango($col->id, $inicio, $fin, $existente?->id);
-        $prestamos = $prestamosInfo['total'];
+        $prestamos = Money::from($prestamosInfo['total']);
 
-        $totalFinal = $totalRutas + $compensacion - $anticipos - $prestamos;
+        $totalFinal = $totalRutas->sumar($compensacion)->restar($anticipos)->restar($prestamos);
 
         return [
             'tipo' => TipoColaborador::Conductor->value,
@@ -57,14 +59,14 @@ class CalculadorConductor extends AbstractCalculadorNomina
             'evento_id' => null,
             'dias' => count($jornadas),
             'sueldo_diario' => 0,
-            'total_base' => round($totalRutas, 2),
+            'total_base' => $totalRutas->toFloat(),
             'bonos_evento' => 0,
             'compensaciones' => $compensacion,
-            'anticipos' => round($anticipos, 2),
-            'prestamos' => round($prestamos, 2),
-            'total_final' => round($totalFinal, 2),
+            'anticipos' => $anticipos->toFloat(),
+            'prestamos' => $prestamos->toFloat(),
+            'total_final' => $totalFinal->toFloat(),
             '_rutas' => $rutas,
-            '_total_rutas' => round($totalRutas, 2),
+            '_total_rutas' => $totalRutas->toFloat(),
             '_prestamo_detalle' => $prestamosInfo['detalle'],
             'estado' => $existente?->estado,
             'nomina_id' => $existente?->id,

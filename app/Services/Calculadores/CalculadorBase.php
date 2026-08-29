@@ -10,6 +10,7 @@ use App\Models\Evento;
 use App\Models\JornadaConsolidada;
 use App\Models\RegistroNormalizado;
 use App\Services\FuzzyMatcher;
+use App\Support\Money;
 use Illuminate\Support\Carbon;
 
 /**
@@ -43,24 +44,24 @@ class CalculadorBase extends AbstractCalculadorNomina
             ->values();
 
         $diasTotales = $evaluaciones->sum('dia_fraccion');
-        $bonosEvento = $evaluaciones->sum('bono_evento');
-        $totalBase = (float) $col->sueldo_diario * $diasTotales;
+        $bonosEvento = Money::from($evaluaciones->sum('bono_evento'));
+        $totalBase = Money::from($col->sueldo_diario)->multiplicarPor($diasTotales);
         $compensacionTotal = $evaluaciones->flatMap(fn ($d) => $d['eventos_dia'])->sum('compensacion');
 
         // Paso 4: bono séptimo día (agrupa por semana lun-sáb)
-        $bonoSeptimoDia = $this->bonoSeptimoDia($col, $jornadas);
+        $bonoSeptimoDia = Money::from($this->bonoSeptimoDia($col, $jornadas));
 
         $existente = $this->nomina($col->id, null, $inicio, $fin);
 
         // Paso 5: anticipos en el rango
-        $anticipos = $this->anticiposEnRango($col->id, $inicio, $fin);
+        $anticipos = Money::from($this->anticiposEnRango($col->id, $inicio, $fin));
 
         // Préstamos: cuotas con fecha programada en el rango (ver prestamosEnRango).
         $prestamosInfo = $this->prestamosEnRango($col->id, $inicio, $fin, $existente?->id);
-        $prestamos = $prestamosInfo['total'];
+        $prestamos = Money::from($prestamosInfo['total']);
 
         // Paso 7
-        $totalFinal = $totalBase + $bonosEvento + $bonoSeptimoDia + $compensacion - $anticipos - $prestamos;
+        $totalFinal = $totalBase->sumar($bonosEvento)->sumar($bonoSeptimoDia)->sumar($compensacion)->restar($anticipos)->restar($prestamos);
 
         $jornadasResumen = $evaluaciones->all();
 
@@ -73,15 +74,15 @@ class CalculadorBase extends AbstractCalculadorNomina
             'evento_id' => null,
             'dias' => round($diasTotales, 2),
             'sueldo_diario' => (float) $col->sueldo_diario,
-            'total_base' => round($totalBase, 2),
-            'bonos_evento' => round($bonosEvento + $bonoSeptimoDia, 2),
+            'total_base' => $totalBase->toFloat(),
+            'bonos_evento' => $bonosEvento->sumar($bonoSeptimoDia)->toFloat(),
             'compensaciones' => $compensacion,
-            'anticipos' => round($anticipos, 2),
-            'prestamos' => round($prestamos, 2),
-            'total_final' => round($totalFinal, 2),
+            'anticipos' => $anticipos->toFloat(),
+            'prestamos' => $prestamos->toFloat(),
+            'total_final' => $totalFinal->toFloat(),
             // desglose interno para la UI
-            '_bonos_evento_puro' => round($bonosEvento, 2),
-            '_bono_septimo' => round($bonoSeptimoDia, 2),
+            '_bonos_evento_puro' => $bonosEvento->toFloat(),
+            '_bono_septimo' => $bonoSeptimoDia->toFloat(),
             '_sueldo_diario' => (float) $col->sueldo_diario,
             '_compensacion_total' => round((float) $compensacionTotal, 2),
             '_jornadas' => $jornadasResumen,
@@ -137,7 +138,7 @@ class CalculadorBase extends AbstractCalculadorNomina
         $registrosDelDia = $registrosEventoPorFecha->get($fecha) ?? collect();
         $fraccionesEvento = $j->fracciones_evento ?? [];
 
-        $bonoTotal = 0.0;
+        $bonoTotal = Money::fromCents(0);
         $eventosDia = [];
 
         foreach ($eventosDelDia as $evento) {
@@ -146,7 +147,7 @@ class CalculadorBase extends AbstractCalculadorNomina
                 ->pluck('etapa');
 
             $pctEtapas = $this->pctDeEtapas($this->etapasUnicas($etapasDelEvento));
-            $extraPorCategoria = $this->extraCategoriaDelEvento($categoria, $nivel, $evento);
+            $extraPorCategoria = Money::from($this->extraCategoriaDelEvento($categoria, $nivel, $evento));
 
             // Con un solo evento el día se usa el % del día (tipo_pago, como antes); con 2+,
             // cada evento tiene su propio porcentaje (1-100, definido libremente por el admin)
@@ -156,29 +157,29 @@ class CalculadorBase extends AbstractCalculadorNomina
                 ? ((int) $porcentajeEvento) / 100
                 : $fraccionEvento;
 
-            $bono = round($extraPorCategoria * $fraccionDelEvento * $pctEtapas, 2);
+            $bono = $extraPorCategoria->multiplicarPor($fraccionDelEvento)->multiplicarPor($pctEtapas);
 
             // Compensación: bono extra opcional, activado por jornada en el Panel de Validación.
             // Se calcula sobre el bono YA ponderado (mismo % de etapas y misma fracción de
             // traslape que el bono normal) — es un "bono sobre el bono", no un monto aparte.
             $compensacion = $j->compensacion_activa
-                ? round($bono * (($compensacionPct ?? 0) / 100), 2)
-                : 0.0;
+                ? $bono->porcentajeDe($compensacionPct ?? 0)
+                : Money::fromCents(0);
 
-            $bonoTotal += $bono + $compensacion;
+            $bonoTotal = $bonoTotal->sumar($bono)->sumar($compensacion);
             $eventosDia[] = [
                 'nombre' => $evento->nombre,
                 'tamano' => $evento->tamano,
                 'pct_etapas' => round($pctEtapas * 100, 2),
-                'bono' => round($bono + $compensacion, 2),
-                'compensacion' => $compensacion,
+                'bono' => $bono->sumar($compensacion)->toFloat(),
+                'compensacion' => $compensacion->toFloat(),
                 'fraccion' => $multiEvento ? (int) $porcentajeEvento : null,
             ];
         }
 
         return array_merge($base, [
             'dia_fraccion' => $fraccionDia,
-            'bono_evento' => round($bonoTotal, 2),
+            'bono_evento' => $bonoTotal->toFloat(),
             'eventos_dia' => $eventosDia,
         ]);
     }

@@ -7,6 +7,7 @@ use App\Models\Anticipo;
 use App\Models\Colaborador;
 use App\Models\Evento;
 use App\Services\FuzzyMatcher;
+use App\Support\Money;
 
 /**
  * Nómina Freelance: pago por evento ponderado por etapas registradas en días validados,
@@ -27,15 +28,15 @@ class CalculadorFreelance extends AbstractCalculadorNomina
         );
         $pct = $this->pctDeEtapas($etapas);
 
-        $pagoBase = (float) $evento->pago_por_evento_completo * $pct;
-        $pagoExtras = $diasAdicionales * (float) ($col->extra_dia_adicional ?? 0);
+        $pagoBase = Money::from($evento->pago_por_evento_completo)->multiplicarPor($pct);
+        $pagoExtras = Money::from($col->extra_dia_adicional ?? 0)->multiplicarPor($diasAdicionales);
 
         // Anticipos vinculados a este evento (fuzzy match en concepto)
-        $anticipos = Anticipo::where('colaborador_id', $col->id)->get()
+        $anticipos = Money::from(Anticipo::where('colaborador_id', $col->id)->get()
             ->filter(fn ($a) => ! empty($a->concepto) && FuzzyMatcher::match($a->concepto, $evento->nombre))
-            ->sum('monto');
+            ->sum('monto'));
 
-        $totalFinal = $pagoBase + $pagoExtras + $compensacion - $anticipos;
+        $totalFinal = $pagoBase->sumar($pagoExtras)->sumar($compensacion)->restar($anticipos);
 
         $existente = $this->nomina($col->id, $evento->id, null, null);
 
@@ -48,16 +49,16 @@ class CalculadorFreelance extends AbstractCalculadorNomina
             'evento_id' => $evento->id,
             'dias' => $diasAdicionales,
             'sueldo_diario' => (float) $evento->pago_por_evento_completo,
-            'total_base' => round($pagoBase, 2),
-            'bonos_evento' => round($pagoExtras, 2),
+            'total_base' => $pagoBase->toFloat(),
+            'bonos_evento' => $pagoExtras->toFloat(),
             'compensaciones' => $compensacion,
-            'anticipos' => round((float) $anticipos, 2),
-            'total_final' => round($totalFinal, 2),
+            'anticipos' => $anticipos->toFloat(),
+            'total_final' => $totalFinal->toFloat(),
             '_etapas' => $etapas->all(),
             '_registros' => $registros->all(),
             '_porcentaje' => $pct * 100,
-            '_pago_base' => round($pagoBase, 2),
-            '_pago_extras' => round($pagoExtras, 2),
+            '_pago_base' => $pagoBase->toFloat(),
+            '_pago_extras' => $pagoExtras->toFloat(),
             'estado' => $existente?->estado,
             'nomina_id' => $existente?->id,
         ];

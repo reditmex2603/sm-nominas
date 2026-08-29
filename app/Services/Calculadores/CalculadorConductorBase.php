@@ -6,6 +6,7 @@ use App\Enums\TipoColaborador;
 use App\Models\Colaborador;
 use App\Models\TransporteDistancia;
 use App\Models\TransporteVehiculo;
+use App\Support\Money;
 use Illuminate\Support\Carbon;
 
 /**
@@ -25,7 +26,7 @@ class CalculadorConductorBase extends CalculadorConductor
         $diasTotales = $jornadas->count();
 
         $rutas = [];
-        $totalRutas = 0.0;
+        $totalRutas = Money::fromCents(0);
 
         foreach ($jornadas as $j) {
             $tarifa = $this->detectarTarifa($j->detalle ?? '', $vehiculos, $distancias);
@@ -33,25 +34,26 @@ class CalculadorConductorBase extends CalculadorConductor
             // Traslape (2 eventos/rutas el mismo día): se paga el % que definió el admin de la
             // tarifa, no la ruta completa (igual que Conductor puro).
             $fraccion = $this->fraccionPago($j);
-            $tarifa['monto'] = round($tarifa['monto'] * $fraccion, 2);
+            $montoRuta = Money::from($tarifa['monto'])->multiplicarPor($fraccion);
+            $tarifa['monto'] = $montoRuta->toFloat();
 
-            $totalRutas += $tarifa['monto'];
+            $totalRutas = $totalRutas->sumar($montoRuta);
             $rutas[] = array_merge($tarifa, ['fecha' => $j->fecha->format('Y-m-d'), 'detalle' => $j->detalle, 'extras' => $j->extras]);
         }
 
-        $totalBase = (float) $col->sueldo_diario * $diasTotales;
+        $totalBase = Money::from($col->sueldo_diario)->multiplicarPor($diasTotales);
 
         // Bono séptimo día: igual que Base (agrupa por semana lun-sáb)
-        $bonoSeptimoDia = $this->bonoSeptimoDia($col, $jornadas);
+        $bonoSeptimoDia = Money::from($this->bonoSeptimoDia($col, $jornadas));
 
         $existente = $this->nomina($col->id, null, $inicio, $fin);
 
-        $anticipos = $this->anticiposEnRango($col->id, $inicio, $fin);
+        $anticipos = Money::from($this->anticiposEnRango($col->id, $inicio, $fin));
 
         $prestamosInfo = $this->prestamosEnRango($col->id, $inicio, $fin, $existente?->id);
-        $prestamos = $prestamosInfo['total'];
+        $prestamos = Money::from($prestamosInfo['total']);
 
-        $totalFinal = $totalBase + $bonoSeptimoDia + $totalRutas + $compensacion - $anticipos - $prestamos;
+        $totalFinal = $totalBase->sumar($bonoSeptimoDia)->sumar($totalRutas)->sumar($compensacion)->restar($anticipos)->restar($prestamos);
 
         return [
             'tipo' => TipoColaborador::ConductorBase->value,
@@ -62,13 +64,13 @@ class CalculadorConductorBase extends CalculadorConductor
             'evento_id' => null,
             'dias' => $diasTotales,
             'sueldo_diario' => (float) $col->sueldo_diario,
-            'total_base' => round($totalBase, 2),
-            'bonos_evento' => round($bonoSeptimoDia, 2),
+            'total_base' => $totalBase->toFloat(),
+            'bonos_evento' => $bonoSeptimoDia->toFloat(),
             'compensaciones' => $compensacion,
-            'anticipos' => round($anticipos, 2),
-            'prestamos' => round($prestamos, 2),
-            'total_final' => round($totalFinal, 2),
-            '_bono_septimo' => round($bonoSeptimoDia, 2),
+            'anticipos' => $anticipos->toFloat(),
+            'prestamos' => $prestamos->toFloat(),
+            'total_final' => $totalFinal->toFloat(),
+            '_bono_septimo' => $bonoSeptimoDia->toFloat(),
             '_sueldo_diario' => (float) $col->sueldo_diario,
             '_jornadas' => $jornadas->map(fn ($j) => [
                 'fecha' => $j->fecha->format('Y-m-d'),
@@ -81,7 +83,7 @@ class CalculadorConductorBase extends CalculadorConductor
                 'eventos_dia' => [],
             ])->values()->all(),
             '_rutas' => $rutas,
-            '_total_rutas' => round($totalRutas, 2),
+            '_total_rutas' => $totalRutas->toFloat(),
             '_prestamo_detalle' => $prestamosInfo['detalle'],
             'estado' => $existente?->estado,
             'nomina_id' => $existente?->id,
