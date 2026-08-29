@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\RolUsuario;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -20,7 +21,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string $email
  * @property Carbon|null $email_verified_at
  * @property string $password
- * @property string|null $rol
+ * @property RolUsuario|null $rol
  * @property array<int, string>|null $permisos
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
@@ -48,16 +49,22 @@ class User extends Authenticatable implements PasskeyUser
             'password' => 'hashed',
             'permisos' => 'array',
             'two_factor_confirmed_at' => 'datetime',
+            'rol' => RolUsuario::class,
         ];
     }
 
     /** El super admin (rol admin) tiene acceso a todos los módulos. */
     public function tienePermiso(string $permiso): bool
     {
-        if ($this->rol === 'admin') {
+        if ($this->rol === RolUsuario::Admin) {
             return true;
         }
 
         return in_array($permiso, $this->permisos ?? [], true);
+    }
+
+    public function esAdmin(): bool
+    {
+        return $this->rol === RolUsuario::Admin;
     }
 }

@@ -2,12 +2,20 @@
 
 namespace App\Models;
 
+use App\Enums\TamanoEvento;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 
+/**
+ * @property int $id
+ * @property string $nombre
+ * @property string|null $lugar
+ * @property TamanoEvento $tamano
+ * @property string|null $pago_por_evento_completo
+ */
 class Evento extends Model
 {
     use HasFactory;
@@ -38,6 +46,7 @@ class Evento extends Model
             'fecha_inicio' => 'date',
             'fecha_fin' => 'date',
             'requisitos_cotizacion' => 'array',
+            'tamano' => TamanoEvento::class,
         ];
     }
 

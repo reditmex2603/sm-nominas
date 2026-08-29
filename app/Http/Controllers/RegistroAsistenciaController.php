@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\TipoColaborador;
 use App\Models\Colaborador;
 use App\Models\Evento;
 use App\Models\HistoricoNomina;
@@ -47,7 +48,7 @@ class RegistroAsistenciaController extends Controller
             $tipo = $r->colaborador->tipo;
             $fecha = $r->fecha->format('Y-m-d');
 
-            if ($tipo === 'FREELANCE') {
+            if ($tipo === TipoColaborador::Freelance) {
                 if (! $r->evento_raw) {
                     return false;
                 }
@@ -202,7 +203,7 @@ class RegistroAsistenciaController extends Controller
             return false;
         }
 
-        if ($colaborador->tipo === 'FREELANCE') {
+        if ($colaborador->tipo === TipoColaborador::Freelance) {
             if (! preg_match('/^Evento: (.+?) - /m', $jornada->detalle ?? '', $m)) {
                 return false;
             }

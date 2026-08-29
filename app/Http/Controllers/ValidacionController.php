@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\TipoColaborador;
 use App\Models\Colaborador;
 use App\Models\Evento;
 use App\Models\HistoricoNomina;
@@ -32,7 +33,7 @@ class ValidacionController extends Controller
         $eventoNombreAId = Evento::pluck('id', 'nombre');
 
         $nominaEstado = function ($j) use ($nominasPeriodo, $nominasFreelance, $eventoNombreAId): ?string {
-            if ($j->colaborador->tipo === 'FREELANCE') {
+            if ($j->colaborador->tipo === TipoColaborador::Freelance) {
                 // Extrae el nombre del evento del detalle ("Evento: Nombre - Etapa")
                 if (! preg_match('/^Evento: (.+?) - /m', $j->detalle ?? '', $m)) {
                     return null;

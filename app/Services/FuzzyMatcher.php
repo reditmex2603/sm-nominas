@@ -10,11 +10,11 @@ class FuzzyMatcher
 
         $mapa = [
             '/[áàäâã]/u' => 'a',
-            '/[éèëê]/u'  => 'e',
-            '/[íìïî]/u'  => 'i',
+            '/[éèëê]/u' => 'e',
+            '/[íìïî]/u' => 'i',
             '/[óòöôõ]/u' => 'o',
-            '/[úùüû]/u'  => 'u',
-            '/[ñ]/u'     => 'n',
+            '/[úùüû]/u' => 'u',
+            '/[ñ]/u' => 'n',
         ];
 
         return preg_replace(array_keys($mapa), array_values($mapa), $texto);
@@ -26,6 +26,7 @@ class FuzzyMatcher
         $txt = self::normalizar($txt);
         $txt = preg_replace('/\s*-\s*/', '-', $txt);   // espacios alrededor de guión
         $txt = preg_replace('/\bk\b/', 'km', $txt);    // "k" aislada → "km"
+
         return $txt;
     }
 

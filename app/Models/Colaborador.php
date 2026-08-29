@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\CategoriaColaborador;
+use App\Enums\TipoColaborador;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -10,6 +12,18 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
+/**
+ * @property int $id
+ * @property string $nombre
+ * @property string $apellidos
+ * @property TipoColaborador $tipo
+ * @property CategoriaColaborador|null $categoria
+ * @property int|null $nivel
+ * @property int $compensacion_pct
+ * @property string|null $sueldo_diario
+ * @property string|null $extra_dia_adicional
+ * @property string $token
+ */
 class Colaborador extends Model
 {
     use HasFactory, SoftDeletes;
@@ -44,6 +58,8 @@ class Colaborador extends Model
             'extra_dia_adicional' => 'decimal:2',
             'nivel' => 'integer',
             'compensacion_pct' => 'integer',
+            'tipo' => TipoColaborador::class,
+            'categoria' => CategoriaColaborador::class,
         ];
     }
 

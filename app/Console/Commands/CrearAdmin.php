@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\RolUsuario;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Validator;
@@ -25,7 +26,7 @@ class CrearAdmin extends Command
 
     public function handle(): int
     {
-        if (User::where('rol', 'admin')->exists()) {
+        if (User::where('rol', RolUsuario::Admin)->exists()) {
             $this->error('Ya existe un usuario con rol admin. No se crea otro.');
 
             return self::FAILURE;
@@ -73,7 +74,7 @@ class CrearAdmin extends Command
         // rol y email_verified_at no están en $fillable (defensa contra
         // mass-assignment); se asignan explícitamente.
         $user->forceFill([
-            'rol' => 'admin',
+            'rol' => RolUsuario::Admin,
             'email_verified_at' => now(),
         ])->save();
 

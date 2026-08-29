@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\TipoColaborador;
 use App\Models\Colaborador;
 use App\Models\Evento;
 use App\Models\HistoricoNomina;
@@ -304,24 +305,26 @@ class EventoController extends Controller
         $requisitos = $evento->requisitos_cotizacion ?? $this->requisitosVacios();
 
         $conteoBase = [];
-        foreach ($asignados->where('tipo', 'COLABORADOR BASE') as $a) {
-            $conteoBase[$a->categoria][$a->nivel] = ($conteoBase[$a->categoria][$a->nivel] ?? 0) + 1;
+        foreach ($asignados->where('tipo', TipoColaborador::Base) as $a) {
+            $categoria = $a->categoria?->value;
+            $conteoBase[$categoria][$a->nivel] = ($conteoBase[$categoria][$a->nivel] ?? 0) + 1;
         }
-        $conteoFreelance = $asignados->where('tipo', 'FREELANCE')->count();
+        $conteoFreelance = $asignados->where('tipo', TipoColaborador::Freelance)->count();
 
         return $todos->filter(function ($c) use ($requisitos, $conteoBase, $conteoFreelance) {
             // Conductores base no participan en eventos (solo Bodega y Transporte).
-            if ($c->tipo === 'CONDUCTOR') {
+            if ($c->tipo === TipoColaborador::Conductor) {
                 return true;
             }
 
-            if ($c->tipo === 'CONDUCTOR BASE') {
+            if ($c->tipo === TipoColaborador::ConductorBase) {
                 return false;
             }
 
-            if ($c->tipo === 'COLABORADOR BASE') {
-                $requerido = $requisitos['base'][$c->categoria][(string) $c->nivel] ?? 0;
-                $yaAsignados = $conteoBase[$c->categoria][$c->nivel] ?? 0;
+            if ($c->tipo === TipoColaborador::Base) {
+                $categoria = $c->categoria?->value;
+                $requerido = $requisitos['base'][$categoria][(string) $c->nivel] ?? 0;
+                $yaAsignados = $conteoBase[$categoria][$c->nivel] ?? 0;
 
                 return $requerido > $yaAsignados;
             }
@@ -344,7 +347,7 @@ class EventoController extends Controller
             ? $evento->fecha_inicio->diffInDays($evento->fecha_fin) + 1
             : null;
 
-        $detalleBase = $asignados->where('tipo', 'COLABORADOR BASE')->map(function ($col) use ($evento, $calc, $dias) {
+        $detalleBase = $asignados->where('tipo', TipoColaborador::Base)->map(function ($col) use ($evento, $calc, $dias) {
             $sueldo = $dias ? (float) $col->sueldo_diario * $dias : 0.0;
             $bono = $dias ? $calc->extraCategoriaDelEvento($col->categoria, $col->nivel, $evento) * $dias : 0.0;
 
@@ -360,7 +363,7 @@ class EventoController extends Controller
             ];
         })->values();
 
-        $freelanceCount = $asignados->where('tipo', 'FREELANCE')->count();
+        $freelanceCount = $asignados->where('tipo', TipoColaborador::Freelance)->count();
         $pagoFreelance = (float) $evento->pago_por_evento_completo;
         $totalFreelance = $freelanceCount * $pagoFreelance;
         $totalBase = (float) $detalleBase->sum('total');
@@ -511,8 +514,8 @@ class EventoController extends Controller
     ): array {
         $dias = $cotizacion['dias'];
 
-        $baseCount = $asignados->where('tipo', 'COLABORADOR BASE')->count();
-        $freelanceCount = $asignados->where('tipo', 'FREELANCE')->count();
+        $baseCount = $asignados->where('tipo', TipoColaborador::Base)->count();
+        $freelanceCount = $asignados->where('tipo', TipoColaborador::Freelance)->count();
 
         $subtotalNomina = round($nomina['subtotal_freelance'] + $nomina['subtotal_base'], 2);
         $totalGastos = round($subtotalNomina + $viaticos['subtotal'] + $servicios['subtotal'], 2);

@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\RolUsuario;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -64,7 +65,7 @@ class UserFactory extends Factory
     public function admin(): static
     {
         return $this->state(fn (array $attributes) => [
-            'rol' => 'admin',
+            'rol' => RolUsuario::Admin,
         ]);
     }
 
@@ -76,7 +77,7 @@ class UserFactory extends Factory
     public function conPermisos(array $permisos): static
     {
         return $this->state(fn (array $attributes) => [
-            'rol' => 'capturista',
+            'rol' => RolUsuario::Capturista,
             'permisos' => $permisos,
         ]);
     }

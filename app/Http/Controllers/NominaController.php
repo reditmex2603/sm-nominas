@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\EstadoNomina;
 use App\Models\Colaborador;
 use App\Models\Evento;
 use App\Models\HistoricoNomina;
@@ -126,7 +127,7 @@ class NominaController extends Controller
         }
 
         // Bloquear si ya está PAGADO
-        if ($desglose['estado'] === 'PAGADO') {
+        if ($desglose['estado'] === EstadoNomina::Pagado) {
             return back()->with('error', 'Esta nómina ya fue pagada y no puede modificarse.');
         }
 
@@ -234,7 +235,7 @@ class NominaController extends Controller
 
     public function pagar(Request $request, HistoricoNomina $nomina): RedirectResponse
     {
-        if ($nomina->estado === 'PAGADO') {
+        if ($nomina->estado === EstadoNomina::Pagado) {
             return back()->with('error', 'Esta nómina ya fue marcada como pagada.');
         }
 
@@ -253,7 +254,7 @@ class NominaController extends Controller
     /** Elimina un cálculo PENDIENTE para poder recalcularlo desde cero (corrección de errores). */
     public function eliminar(HistoricoNomina $nomina): RedirectResponse
     {
-        if ($nomina->estado === 'PAGADO') {
+        if ($nomina->estado === EstadoNomina::Pagado) {
             return back()->with('error', 'Esta nómina ya fue pagada y no puede eliminarse.');
         }
 

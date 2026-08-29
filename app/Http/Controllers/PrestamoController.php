@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\EstadoCuota;
+use App\Enums\TipoColaborador;
 use App\Models\Colaborador;
 use App\Models\Prestamo;
 use App\Models\PrestamoCuota;
@@ -41,18 +43,18 @@ class PrestamoController extends Controller
         ]);
 
         $colaborador = Colaborador::findOrFail($validated['colaborador_id']);
-        if (! in_array($colaborador->tipo, ['COLABORADOR BASE', 'CONDUCTOR', 'CONDUCTOR BASE'], true)) {
-            return back()->withErrors(['colaborador_id' => 'Los préstamos solo aplican a colaboradores Base, Conductores o Conductores base.']);
+        if (in_array($colaborador->tipo, [TipoColaborador::Base, TipoColaborador::Conductor, TipoColaborador::ConductorBase], true)) {
+            DB::transaction(function () use ($validated) {
+                $prestamo = Prestamo::create($validated);
+                $this->generarCuotas($prestamo);
+            });
+
+            Inertia::flash('toast', ['type' => 'success', 'message' => 'Préstamo registrado y calendario de cuotas generado.']);
+
+            return back();
         }
 
-        DB::transaction(function () use ($validated) {
-            $prestamo = Prestamo::create($validated);
-            $this->generarCuotas($prestamo);
-        });
-
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Préstamo registrado y calendario de cuotas generado.']);
-
-        return back();
+        return back()->withErrors(['colaborador_id' => 'Los préstamos solo aplican a colaboradores Base, Conductores o Conductores base.']);
     }
 
     public function destroy(Prestamo $prestamo): RedirectResponse
@@ -75,7 +77,7 @@ class PrestamoController extends Controller
      */
     public function pagarCuota(PrestamoCuota $cuota): RedirectResponse
     {
-        if ($cuota->estado === 'PAGADA') {
+        if ($cuota->estado === EstadoCuota::Pagada) {
             return back()->withErrors(['pago' => 'Esta cuota ya está pagada.']);
         }
 
@@ -93,7 +95,7 @@ class PrestamoController extends Controller
      */
     public function revertirCuota(PrestamoCuota $cuota): RedirectResponse
     {
-        if ($cuota->estado !== 'PAGADA') {
+        if ($cuota->estado !== EstadoCuota::Pagada) {
             return back()->withErrors(['revertir' => 'Esta cuota no está pagada.']);
         }
 
@@ -132,7 +134,7 @@ class PrestamoController extends Controller
             return back();
         }
 
-        if ($cuotas->contains(fn ($c) => $c->estado !== 'PENDIENTE')) {
+        if ($cuotas->contains(fn ($c) => $c->estado !== EstadoCuota::Pendiente)) {
             Inertia::flash('toast', ['type' => 'error', 'message' => 'Solo se pueden aplazar cuotas pendientes.']);
 
             return back();
@@ -188,7 +190,7 @@ class PrestamoController extends Controller
             return back();
         }
 
-        if ($seleccionadas->contains(fn ($c) => $c->estado !== 'PENDIENTE' || $c->historico_nomina_id !== null)) {
+        if ($seleccionadas->contains(fn ($c) => $c->estado !== EstadoCuota::Pendiente || $c->historico_nomina_id !== null)) {
             Inertia::flash('toast', ['type' => 'error', 'message' => 'Solo se pueden distribuir cuotas pendientes y sin incluir aún en una nómina guardada.']);
 
             return back();

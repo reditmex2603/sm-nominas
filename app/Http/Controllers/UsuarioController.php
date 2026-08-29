@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\RolUsuario;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -119,7 +120,7 @@ class UsuarioController extends Controller
     /** No se permite editar ni eliminar a otros admins (solo hay un super admin). */
     private function authorizeNoAdmin(User $usuario): void
     {
-        if ($usuario->rol === 'admin') {
+        if ($usuario->rol === RolUsuario::Admin) {
             abort(403, 'No puedes gestionar a otros administradores.');
         }
     }

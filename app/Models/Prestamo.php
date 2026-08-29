@@ -2,11 +2,23 @@
 
 namespace App\Models;
 
+use App\Enums\PeriodicidadPrestamo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int $colaborador_id
+ * @property string $monto_total
+ * @property int $num_plazos
+ * @property PeriodicidadPrestamo $periodicidad
+ * @property Carbon $fecha_inicio
+ * @property string|null $concepto
+ * @property string|null $autoriza
+ */
 class Prestamo extends Model
 {
     use HasFactory;
@@ -26,6 +38,7 @@ class Prestamo extends Model
         return [
             'monto_total' => 'decimal:2',
             'fecha_inicio' => 'date',
+            'periodicidad' => PeriodicidadPrestamo::class,
         ];
     }
 

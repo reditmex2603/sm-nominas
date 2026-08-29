@@ -2,6 +2,13 @@
 
 namespace App\Services;
 
+use App\Enums\CategoriaColaborador;
+use App\Enums\EstadoCuota;
+use App\Enums\EtapaEvento;
+use App\Enums\TamanoEvento;
+use App\Enums\TipoActividad;
+use App\Enums\TipoColaborador;
+use App\Enums\TipoPago;
 use App\Models\Anticipo;
 use App\Models\Colaborador;
 use App\Models\Evento;
@@ -17,12 +24,6 @@ use Illuminate\Support\Carbon;
 
 class NominaCalculator
 {
-    private const PCT_ETAPA = [
-        'Montaje' => 0.25,
-        'Show' => 0.50,
-        'Desmontaje' => 0.25,
-    ];
-
     /**
      * Parámetro de Parámetros del Sistema que define el extra de evento (Base) según la
      * categoría del colaborador, su NIVEL (1 o 2 dentro de esa categoría) Y el tamaño del
@@ -62,7 +63,7 @@ class NominaCalculator
         // igual recibe el día completo (sueldo_diario × fracción del tipo_pago) MÁS el extra de
         // categoría ponderado por su % de participación en las etapas — no se le quita el día.
         $registrosEventoPorFecha = RegistroNormalizado::where('colaborador_id', $col->id)
-            ->where('tipo_actividad', 'Evento')
+            ->where('tipo_actividad', TipoActividad::Evento)
             ->whereBetween('fecha', [$inicio->format('Y-m-d'), $fin->format('Y-m-d')])
             ->get()
             ->groupBy(fn ($r) => $r->fecha->format('Y-m-d'));
@@ -113,8 +114,8 @@ class NominaCalculator
         $jornadasResumen = $evaluaciones->all();
 
         return [
-            'tipo' => 'COLABORADOR BASE',
-            'tipo_colaborador' => 'COLABORADOR BASE',
+            'tipo' => TipoColaborador::Base->value,
+            'tipo_colaborador' => TipoColaborador::Base->value,
             'colaborador_id' => $col->id,
             'periodo_inicio' => $inicio->format('Y-m-d'),
             'periodo_fin' => $fin->format('Y-m-d'),
@@ -172,8 +173,8 @@ class NominaCalculator
         $existente = $this->nomina($col->id, $evento->id, null, null);
 
         return [
-            'tipo' => 'FREELANCE',
-            'tipo_colaborador' => 'FREELANCE',
+            'tipo' => TipoColaborador::Freelance->value,
+            'tipo_colaborador' => TipoColaborador::Freelance->value,
             'colaborador_id' => $col->id,
             'periodo_inicio' => null,
             'periodo_fin' => null,
@@ -230,8 +231,8 @@ class NominaCalculator
         $totalFinal = $totalRutas + $compensacion - $anticipos - $prestamos;
 
         return [
-            'tipo' => 'CONDUCTOR',
-            'tipo_colaborador' => 'CONDUCTOR',
+            'tipo' => TipoColaborador::Conductor->value,
+            'tipo_colaborador' => TipoColaborador::Conductor->value,
             'colaborador_id' => $col->id,
             'periodo_inicio' => $inicio->format('Y-m-d'),
             'periodo_fin' => $fin->format('Y-m-d'),
@@ -313,8 +314,8 @@ class NominaCalculator
         $totalFinal = $totalBase + $bonoSeptimoDia + $totalRutas + $compensacion - $anticipos - $prestamos;
 
         return [
-            'tipo' => 'CONDUCTOR BASE',
-            'tipo_colaborador' => 'CONDUCTOR BASE',
+            'tipo' => TipoColaborador::ConductorBase->value,
+            'tipo_colaborador' => TipoColaborador::ConductorBase->value,
             'colaborador_id' => $col->id,
             'periodo_inicio' => $inicio->format('Y-m-d'),
             'periodo_fin' => $fin->format('Y-m-d'),
@@ -331,7 +332,7 @@ class NominaCalculator
             '_sueldo_diario' => (float) $col->sueldo_diario,
             '_jornadas' => $jornadas->map(fn ($j) => [
                 'fecha' => $j->fecha->format('Y-m-d'),
-                'tipo_pago' => $j->tipo_pago,
+                'tipo_pago' => $j->tipo_pago->value,
                 'traslape_pct' => $j->traslape_pct,
                 'detalle' => $j->detalle,
                 'extras' => $j->extras,
@@ -356,7 +357,7 @@ class NominaCalculator
         return JornadaConsolidada::where('colaborador_id', $colaboradorId)
             ->whereBetween('fecha', [$inicio->format('Y-m-d'), $fin->format('Y-m-d')])
             ->where('validado', true)
-            ->whereNotIn('tipo_pago', ['SIN_PAGO', 'ERROR_EVENTO'])
+            ->whereNotIn('tipo_pago', [TipoPago::SinPago, TipoPago::ErrorEvento])
             ->orderBy('fecha')
             ->get();
     }
@@ -368,7 +369,7 @@ class NominaCalculator
      * cada evento se pondera y paga por separado según su propio % de etapas y su propio
      * tamaño (CHICO no genera bono), y los extras se suman.
      */
-    private function evaluarDiaBase(JornadaConsolidada $j, ?string $categoria, ?int $nivel, ?int $compensacionPct, $registrosEventoPorFecha): array
+    private function evaluarDiaBase(JornadaConsolidada $j, CategoriaColaborador|string|null $categoria, ?int $nivel, ?int $compensacionPct, $registrosEventoPorFecha): array
     {
         $fecha = Carbon::parse($j->fecha)->format('Y-m-d');
         $eventosDelDia = Evento::extraerDeDetalle($j->detalle ?? '');
@@ -382,7 +383,7 @@ class NominaCalculator
 
         $base = [
             'fecha' => $fecha,
-            'tipo_pago' => $j->tipo_pago,
+            'tipo_pago' => $j->tipo_pago->value,
             'traslape_pct' => $j->traslape_pct,
             'compensacion_activa' => (bool) $j->compensacion_activa,
             'detalle' => $j->detalle,
@@ -457,8 +458,8 @@ class NominaCalculator
     private function fraccionPago(JornadaConsolidada $j): float
     {
         return match ($j->tipo_pago) {
-            'JORNADA_COMPLETA', 'JORNADA_COMPLETA + EVENTO' => 1.0,
-            'TRASLAPE' => ((int) ($j->traslape_pct ?? 0)) / 100,
+            TipoPago::JornadaCompleta, TipoPago::JornadaCompletaEvento => 1.0,
+            TipoPago::Traslape => ((int) ($j->traslape_pct ?? 0)) / 100,
             default => 0.0,
         };
     }
@@ -467,8 +468,8 @@ class NominaCalculator
     private function fraccionEventoDia(JornadaConsolidada $j): float
     {
         return match ($j->tipo_pago) {
-            'JORNADA_COMPLETA + EVENTO' => 1.0,
-            'TRASLAPE' => ((int) ($j->traslape_pct ?? 0)) / 100,
+            TipoPago::JornadaCompletaEvento => 1.0,
+            TipoPago::Traslape => ((int) ($j->traslape_pct ?? 0)) / 100,
             default => 0.0,
         };
     }
@@ -478,13 +479,14 @@ class NominaCalculator
      * siempre. Público porque también lo usa `EventoController` para la cotización de nómina
      * (mismos parámetros, una sola fuente de verdad).
      */
-    public function extraCategoriaDelEvento(?string $categoria, ?int $nivel, ?Evento $evento): float
+    public function extraCategoriaDelEvento(CategoriaColaborador|string|null $categoria, ?int $nivel, ?Evento $evento): float
     {
-        if (! $evento || ! $nivel || $evento->tamano === 'CHICO') {
+        if (! $evento || ! $nivel || $evento->tamano === TamanoEvento::Chico) {
             return 0.0;
         }
 
-        $clave = self::PARAMETRO_BONO_POR_CATEGORIA_NIVEL_TAMANO[$categoria][$nivel][$evento->tamano] ?? null;
+        $categoriaValor = $categoria instanceof CategoriaColaborador ? $categoria->value : $categoria;
+        $clave = self::PARAMETRO_BONO_POR_CATEGORIA_NIVEL_TAMANO[$categoriaValor][$nivel][$evento->tamano->value] ?? null;
 
         return $clave ? (float) ParametroSistema::get($clave, 0) : 0.0;
     }
@@ -494,13 +496,13 @@ class NominaCalculator
     {
         $fechasValidas = JornadaConsolidada::where('colaborador_id', $colaboradorId)
             ->where('validado', true)
-            ->whereNotIn('tipo_pago', ['SIN_PAGO', 'ERROR_EVENTO'])
+            ->whereNotIn('tipo_pago', [TipoPago::SinPago, TipoPago::ErrorEvento])
             ->pluck('fecha')
             ->map(fn ($f) => $f->format('Y-m-d'))
             ->flip();
 
         return RegistroNormalizado::where('colaborador_id', $colaboradorId)
-            ->where('tipo_actividad', 'Evento')
+            ->where('tipo_actividad', TipoActividad::Evento)
             ->orderBy('fecha')
             ->get()
             ->filter(fn ($r) => ! empty($r->evento_raw) && FuzzyMatcher::match($r->evento_raw, $evento->nombre))
@@ -518,7 +520,7 @@ class NominaCalculator
     {
         return collect($etapasCrudas)
             ->filter()
-            ->flatMap(fn ($e) => array_map('trim', explode(',', $e)))
+            ->flatMap(fn ($e) => array_map('trim', explode(',', is_string($e) ? $e : $e->value)))
             ->filter()
             ->unique()
             ->values();
@@ -527,7 +529,7 @@ class NominaCalculator
     /** Suma el % de cada etapa (Montaje 25%, Show 50%, Desmontaje 25%), topado en 100%. */
     private function pctDeEtapas($etapasUnicas): float
     {
-        return min(1.0, collect($etapasUnicas)->sum(fn ($e) => self::PCT_ETAPA[$e] ?? 0));
+        return min(1.0, collect($etapasUnicas)->sum(fn ($e) => EtapaEvento::tryFrom($e)?->porcentaje() ?? 0));
     }
 
     private function anticiposEnRango(int $colaboradorId, Carbon $inicio, Carbon $fin): float
@@ -547,7 +549,7 @@ class NominaCalculator
     private function prestamosEnRango(int $colaboradorId, Carbon $inicio, Carbon $fin, ?int $nominaActualId): array
     {
         $cuotas = PrestamoCuota::whereHas('prestamo', fn ($q) => $q->where('colaborador_id', $colaboradorId))
-            ->where('estado', 'PENDIENTE')
+            ->where('estado', EstadoCuota::Pendiente)
             ->whereBetween('fecha_programada', [$inicio->format('Y-m-d'), $fin->format('Y-m-d')])
             ->where(function ($q) use ($nominaActualId) {
                 $q->whereNull('historico_nomina_id');

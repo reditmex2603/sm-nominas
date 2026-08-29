@@ -60,11 +60,11 @@ test('guardar crea la nómina como PENDIENTE y liga las cuotas del periodo', fun
 
     $nomina = HistoricoNomina::sole();
 
-    expect($nomina->estado)->toBe('PENDIENTE')
+    expect($nomina->estado->value)->toBe('PENDIENTE')
         ->and((float) $nomina->total_final)->toBe(700.0) // 1000 − 300 de cuota
         ->and((float) $nomina->prestamos)->toBe(300.0)
         ->and($cuota->fresh()->historico_nomina_id)->toBe($nomina->id)
-        ->and($cuota->fresh()->estado)->toBe('PENDIENTE'); // se liquida al pagar, no antes
+        ->and($cuota->fresh()->estado->value)->toBe('PENDIENTE'); // se liquida al pagar, no antes
 });
 
 test('guardar rechaza el periodo si hay jornadas sin validar', function () {
@@ -87,14 +87,14 @@ test('una nómina PAGADO no puede modificarse ni pagarse dos veces', function ()
         ->patch(route('nomina.pagar', $nomina))
         ->assertSessionHasNoErrors();
 
-    expect($nomina->fresh()->estado)->toBe('PAGADO');
+    expect($nomina->fresh()->estado->value)->toBe('PAGADO');
 
     // Re-guardar sobre una pagada: rechazado
     $this->actingAs($this->admin)
         ->post(route('nomina.guardar'), paramsNomina($this->colaborador));
 
     expect(HistoricoNomina::count())->toBe(1)
-        ->and($nomina->fresh()->estado)->toBe('PAGADO');
+        ->and($nomina->fresh()->estado->value)->toBe('PAGADO');
 
     // Pagar dos veces: rechazado
     $this->actingAs($this->admin)
@@ -113,8 +113,8 @@ test('pagar liquida las cuotas de préstamo ligadas a la nómina', function () {
 
     $this->actingAs($this->admin)->patch(route('nomina.pagar', $nomina));
 
-    expect($nomina->fresh()->estado)->toBe('PAGADO')
-        ->and($cuota->fresh()->estado)->toBe('PAGADA')
+    expect($nomina->fresh()->estado->value)->toBe('PAGADO')
+        ->and($cuota->fresh()->estado->value)->toBe('PAGADA')
         ->and($cuota->fresh()->fecha_pago)->not->toBeNull();
 });
 
@@ -133,7 +133,7 @@ test('eliminar una nómina pendiente libera sus cuotas para un cálculo futuro',
 
     expect(HistoricoNomina::count())->toBe(0)
         ->and($cuota->fresh()->historico_nomina_id)->toBeNull()
-        ->and($cuota->fresh()->estado)->toBe('PENDIENTE');
+        ->and($cuota->fresh()->estado->value)->toBe('PENDIENTE');
 });
 
 test('un usuario sin permiso de nómina recibe 403 en todo el flujo', function () {

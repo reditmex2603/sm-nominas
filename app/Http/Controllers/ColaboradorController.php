@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\TipoColaborador;
 use App\Models\Anticipo;
 use App\Models\Colaborador;
 use App\Models\ColaboradorPerfil;
@@ -79,19 +80,19 @@ class ColaboradorController extends Controller
     {
         $rules = [];
 
-        if ($colaborador->tipo === 'COLABORADOR BASE') {
+        if ($colaborador->tipo === TipoColaborador::Base) {
             $rules['sueldo_diario'] = 'nullable|numeric|min:0';
             $rules['categoria'] = 'required|in:Encargado de área,Técnico,Stagehand SM';
             $rules['nivel'] = 'required|integer|in:1,2';
             $rules['compensacion_pct'] = 'nullable|integer|min:0|max:100';
         }
 
-        if ($colaborador->tipo === 'CONDUCTOR BASE') {
+        if ($colaborador->tipo === TipoColaborador::ConductorBase) {
             $rules['sueldo_diario'] = 'required|numeric|min:0';
             $rules['compensacion_pct'] = 'nullable|integer|min:0|max:100';
         }
 
-        if ($colaborador->tipo === 'FREELANCE') {
+        if ($colaborador->tipo === TipoColaborador::Freelance) {
             $rules['extra_dia_adicional'] = 'nullable|numeric|min:0';
         }
 
@@ -127,7 +128,7 @@ class ColaboradorController extends Controller
             $bloqueos[] = 'cuotas de préstamo pendientes de cobro';
         }
 
-        $anticipoSinDescontar = in_array($colaborador->tipo, ['COLABORADOR BASE', 'CONDUCTOR', 'CONDUCTOR BASE'], true)
+        $anticipoSinDescontar = in_array($colaborador->tipo, [TipoColaborador::Base, TipoColaborador::Conductor, TipoColaborador::ConductorBase], true)
             && Anticipo::where('colaborador_id', $colaborador->id)
                 ->whereNotExists(function ($query) {
                     $query->selectRaw('1')

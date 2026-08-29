@@ -2,6 +2,10 @@
 
 namespace App\Services;
 
+use App\Enums\TamanoEvento;
+use App\Enums\TipoActividad;
+use App\Enums\TipoColaborador;
+use App\Enums\TipoPago;
 use App\Models\Evento;
 use App\Models\JornadaConsolidada;
 use App\Models\RegistroNormalizado;
@@ -21,7 +25,7 @@ class JornadaGenerator
 
         // Agrupar por colaborador + fecha
         $grupos = $registros->groupBy(
-            fn ($r) => $r->colaborador_id . '_' . $r->fecha->format('Y-m-d'),
+            fn ($r) => $r->colaborador_id.'_'.$r->fecha->format('Y-m-d'),
         );
 
         foreach ($grupos as $grupoRegistros) {
@@ -39,15 +43,15 @@ class JornadaGenerator
 
             // Entrada y salida (solo BASE y CONDUCTOR BASE)
             // Entrada = mínima hora_entrada del día; salida = máxima hora_salida (o hora si no hay)
-            if (in_array($tipo, ['COLABORADOR BASE', 'CONDUCTOR BASE'], true)) {
+            if (in_array($tipo, [TipoColaborador::Base, TipoColaborador::ConductorBase], true)) {
                 $entrada = $grupoRegistros->pluck('hora')->sort()->first();
-                $salida  = $grupoRegistros
+                $salida = $grupoRegistros
                     ->map(fn ($r) => $r->hora_salida ?? $r->hora)
                     ->sort()
                     ->last();
             } else {
                 $entrada = null;
-                $salida  = null;
+                $salida = null;
             }
 
             // Construir detalle y conjuntos
@@ -81,12 +85,12 @@ class JornadaGenerator
             $actividades = $grupoRegistros->pluck('tipo_actividad')->unique()->values()->toArray();
 
             $datosAsistencia = [
-                'entrada'     => $entrada,
-                'salida'      => $salida,
+                'entrada' => $entrada,
+                'salida' => $salida,
                 'actividades' => $actividades,
-                'detalle'     => $detalle ?: null,
-                'extras'      => $extras ? implode(', ', array_unique($extras)) : null,
-                'evidencias'  => $evidencias ? implode(', ', array_unique($evidencias)) : null,
+                'detalle' => $detalle ?: null,
+                'extras' => $extras ? implode(', ', array_unique($extras)) : null,
+                'evidencias' => $evidencias ? implode(', ', array_unique($evidencias)) : null,
                 'comentarios' => $comentarios ? implode(', ', array_unique($comentarios)) : null,
             ];
 
@@ -97,7 +101,7 @@ class JornadaGenerator
                 JornadaConsolidada::updateOrCreate(
                     ['colaborador_id' => $colaboradorId, 'fecha' => $fecha],
                     array_merge($datosAsistencia, [
-                        'validado'  => false,
+                        'validado' => false,
                         'tipo_pago' => $this->proponerTipoPago($detalle, $errorJornada),
                     ]),
                 );
@@ -112,30 +116,30 @@ class JornadaGenerator
     }
 
     /** @return array{0: string|null, 1: string|null} [línea de detalle, mensaje de error] */
-    private function construirLinea(RegistroNormalizado $reg, string $tipo): array
+    private function construirLinea(RegistroNormalizado $reg, TipoColaborador $tipo): array
     {
         $tipoActividad = $reg->tipo_actividad;
         $error = null;
 
         // Reglas de validación por tipo de colaborador
-        if ($tipo === 'FREELANCE' && $tipoActividad !== 'Evento') {
+        if ($tipo === TipoColaborador::Freelance && $tipoActividad !== TipoActividad::Evento) {
             $error = 'Freelance actividad inválida';
         }
-        if ($tipo === 'CONDUCTOR' && $tipoActividad !== 'Transporte') {
+        if ($tipo === TipoColaborador::Conductor && $tipoActividad !== TipoActividad::Transporte) {
             $error = 'Conductor actividad inválida';
         }
-        if ($tipo === 'COLABORADOR BASE' && $tipoActividad === 'Transporte') {
+        if ($tipo === TipoColaborador::Base && $tipoActividad === TipoActividad::Transporte) {
             $error = 'Base en transporte';
         }
-        if ($tipo === 'CONDUCTOR BASE' && $tipoActividad === 'Evento') {
+        if ($tipo === TipoColaborador::ConductorBase && $tipoActividad === TipoActividad::Evento) {
             $error = 'Conductor base en evento';
         }
 
         $linea = match ($tipoActividad) {
-            'Bodega'     => "Bodega: {$reg->actividad}",
-            'Evento'     => $this->lineaEvento($reg, $error),
-            'Transporte' => "Transporte: Manejó un(a) {$reg->vehiculo} {$reg->distancia}, de {$reg->origen} a {$reg->destino}",
-            default      => null,
+            TipoActividad::Bodega => "Bodega: {$reg->actividad}",
+            TipoActividad::Evento => $this->lineaEvento($reg, $error),
+            TipoActividad::Transporte => "Transporte: Manejó un(a) {$reg->vehiculo} {$reg->distancia}, de {$reg->origen} a {$reg->destino}",
+            default => null,
         };
 
         return [$linea, $error];
@@ -172,11 +176,11 @@ class JornadaGenerator
     private function proponerTipoPago(string $detalle, ?string $error): string
     {
         if ($error === 'Evento no identificado') {
-            return 'ERROR_EVENTO';
+            return TipoPago::ErrorEvento->value;
         }
 
         if (trim($detalle) === '') {
-            return 'SIN_PAGO';
+            return TipoPago::SinPago->value;
         }
 
         // Un día puede tener registros de más de un evento (el colaborador participó
@@ -185,24 +189,24 @@ class JornadaGenerator
         $nombresEventos = $matches[1] ?? [];
 
         if (in_array('NO IDENTIFICADO', $nombresEventos, true)) {
-            return 'ERROR_EVENTO';
+            return TipoPago::ErrorEvento->value;
         }
 
         // Si cualquiera de los eventos del día no es CHICO, ya amerita el bono de evento,
         // aunque otro evento del mismo día sí lo sea.
         foreach ($nombresEventos as $nombre) {
             foreach ($this->eventos as $evento) {
-                if (FuzzyMatcher::match($nombre, $evento->nombre) && $evento->tamano !== 'CHICO') {
-                    return 'JORNADA_COMPLETA + EVENTO';
+                if (FuzzyMatcher::match($nombre, $evento->nombre) && $evento->tamano !== TamanoEvento::Chico) {
+                    return TipoPago::JornadaCompletaEvento->value;
                 }
             }
         }
 
         // Bodega, Transporte, o evento(s) CHICO sin ningún evento mayor → jornada completa sin bono
-        if (!empty($nombresEventos) || str_contains($detalle, 'Bodega:') || str_contains($detalle, 'Transporte:')) {
-            return 'JORNADA_COMPLETA';
+        if (! empty($nombresEventos) || str_contains($detalle, 'Bodega:') || str_contains($detalle, 'Transporte:')) {
+            return TipoPago::JornadaCompleta->value;
         }
 
-        return 'SIN_PAGO';
+        return TipoPago::SinPago->value;
     }
 }

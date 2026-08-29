@@ -30,7 +30,7 @@ test('consolida los registros del día con entrada y salida para colaborador bas
         ->and($jornada->actividades)->toBe(['Bodega'])
         ->and($jornada->detalle)->toContain('Bodega: Carga de equipo')
         ->and($jornada->detalle)->toContain('Bodega: Inventario')
-        ->and($jornada->tipo_pago)->toBe('JORNADA_COMPLETA')
+        ->and($jornada->tipo_pago->value)->toBe('JORNADA_COMPLETA')
         ->and($jornada->validado)->toBeFalse();
 });
 
@@ -62,7 +62,7 @@ test('un evento no chico propone jornada completa + evento', function () {
 
     $jornada = JornadaConsolidada::where('colaborador_id', $base->id)->sole();
 
-    expect($jornada->tipo_pago)->toBe('JORNADA_COMPLETA + EVENTO')
+    expect($jornada->tipo_pago->value)->toBe('JORNADA_COMPLETA + EVENTO')
         ->and($jornada->detalle)->toBe("Evento: {$evento->nombre} - Show");
 });
 
@@ -76,7 +76,7 @@ test('un evento chico propone jornada completa sin bono', function () {
 
     $this->gen->generar();
 
-    expect(JornadaConsolidada::where('colaborador_id', $base->id)->sole()->tipo_pago)->toBe('JORNADA_COMPLETA');
+    expect(JornadaConsolidada::where('colaborador_id', $base->id)->sole()->tipo_pago->value)->toBe('JORNADA_COMPLETA');
 });
 
 test('un evento no identificado marca ERROR_EVENTO y lo reporta', function () {
@@ -90,7 +90,7 @@ test('un evento no identificado marca ERROR_EVENTO y lo reporta', function () {
 
     $jornada = JornadaConsolidada::where('colaborador_id', $base->id)->sole();
 
-    expect($jornada->tipo_pago)->toBe('ERROR_EVENTO')
+    expect($jornada->tipo_pago->value)->toBe('ERROR_EVENTO')
         ->and($jornada->detalle)->toContain('NO IDENTIFICADO')
         ->and($errores)->not->toBeEmpty()
         ->and($errores[0])->toContain('Evento no identificado');
@@ -114,7 +114,7 @@ test('regenerar preserva la validación humana y el tipo de pago revisado', func
     $jornada = JornadaConsolidada::where('colaborador_id', $base->id)->sole();
 
     expect($jornada->validado)->toBeTrue()
-        ->and($jornada->tipo_pago)->toBe('TRASLAPE')       // no se toca
+        ->and($jornada->tipo_pago->value)->toBe('TRASLAPE')       // no se toca
         ->and($jornada->traslape_pct)->toBe(40)           // no se toca
         ->and($jornada->detalle)->toContain("Evento: {$evento->nombre} - Show"); // asistencia sí se actualiza
 });

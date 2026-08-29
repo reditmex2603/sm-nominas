@@ -2,10 +2,22 @@
 
 namespace App\Models;
 
+use App\Enums\EstadoCuota;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int $prestamo_id
+ * @property int $numero_plazo
+ * @property string $monto
+ * @property Carbon $fecha_programada
+ * @property EstadoCuota $estado
+ * @property Carbon|null $fecha_pago
+ * @property int|null $historico_nomina_id
+ */
 class PrestamoCuota extends Model
 {
     use HasFactory;
@@ -28,6 +40,7 @@ class PrestamoCuota extends Model
             'monto' => 'decimal:2',
             'fecha_programada' => 'date',
             'fecha_pago' => 'date',
+            'estado' => EstadoCuota::class,
         ];
     }
 

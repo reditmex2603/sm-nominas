@@ -2,10 +2,29 @@
 
 namespace App\Models;
 
+use App\Enums\TipoPago;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int $colaborador_id
+ * @property Carbon $fecha
+ * @property string|null $entrada
+ * @property string|null $salida
+ * @property array<int, string>|null $actividades
+ * @property string|null $detalle
+ * @property string|null $extras
+ * @property string|null $evidencias
+ * @property string|null $comentarios
+ * @property bool $validado
+ * @property TipoPago $tipo_pago
+ * @property int|null $traslape_pct
+ * @property array<int, int>|null $fracciones_evento
+ * @property bool $compensacion_activa
+ */
 class JornadaConsolidada extends Model
 {
     use HasFactory;
@@ -38,6 +57,7 @@ class JornadaConsolidada extends Model
             'traslape_pct' => 'integer',
             'fracciones_evento' => 'array',
             'compensacion_activa' => 'boolean',
+            'tipo_pago' => TipoPago::class,
         ];
     }
 

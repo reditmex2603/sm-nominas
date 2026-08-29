@@ -40,13 +40,7 @@ class AsistenciaPublicaController extends Controller
     {
         $colaborador = Colaborador::where('token', $token)->firstOrFail();
 
-        $tiposPermitidos = match ($colaborador->tipo) {
-            'COLABORADOR BASE' => ['Bodega', 'Evento'],
-            'FREELANCE' => ['Evento'],
-            'CONDUCTOR' => ['Transporte'],
-            'CONDUCTOR BASE' => ['Bodega', 'Transporte'],
-            default => [],
-        };
+        $tiposPermitidos = $colaborador->tipo->actividadesPermitidas();
 
         $validated = $request->validate([
             'tipo_actividad' => ['required', Rule::in($tiposPermitidos)],
