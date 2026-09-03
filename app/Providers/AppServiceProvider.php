@@ -2,12 +2,14 @@
 
 namespace App\Providers;
 
+use App\Support\Modulos;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -29,6 +31,28 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->registrarGatesDeModulos();
+    }
+
+    /**
+     * Autorización por módulo mediante Gates de Laravel (reemplaza a los middlewares
+     * VerPermiso/EsAdmin):
+     *
+     * - `Gate::before`: el rol admin tiene acceso implícito a todo.
+     * - `Gate::define('modulo:{clave}')`: un Gate por cada módulo del catálogo, que
+     *   delega en User::tienePermiso() — la misma fuente de verdad que ya validan
+     *   los Form Requests de UsuarioController contra Modulos::claves().
+     */
+    protected function registrarGatesDeModulos(): void
+    {
+        Gate::before(fn ($user, string $ability) => $user->esAdmin() ? true : null);
+
+        // Administración del sistema (parámetros, usuarios, marca): solo rol admin.
+        Gate::define('es-admin', fn ($user) => $user->esAdmin());
+
+        foreach (Modulos::claves() as $modulo) {
+            Gate::define("modulo:{$modulo}", fn ($user) => $user->tienePermiso($modulo));
+        }
     }
 
     /**

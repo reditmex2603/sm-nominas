@@ -57,12 +57,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 // Cada módulo exige su permiso; el super admin (rol admin) los tiene todos.
-Route::middleware(['auth', 'verified', 'ver_permiso:validacion'])->group(function () {
+Route::middleware(['auth', 'verified', 'can:modulo:validacion'])->group(function () {
     // Panel Validación
     Route::get('validacion', [ValidacionController::class, 'index'])->name('validacion.index');
 });
 
-Route::middleware(['auth', 'verified', 'ver_permiso:colaboradores'])->group(function () {
+Route::middleware(['auth', 'verified', 'can:modulo:colaboradores'])->group(function () {
     // Colaboradores
     Route::get('colaboradores', [ColaboradorController::class, 'index'])->name('colaboradores.index');
     Route::post('colaboradores', [ColaboradorController::class, 'store'])->name('colaboradores.store');
@@ -82,7 +82,7 @@ Route::middleware(['auth', 'verified', 'ver_permiso:colaboradores'])->group(func
         ->name('colaboradores.perfil.documento.eliminar');
 });
 
-Route::middleware(['auth', 'verified', 'ver_permiso:eventos'])->group(function () {
+Route::middleware(['auth', 'verified', 'can:modulo:eventos'])->group(function () {
     // Eventos
     Route::get('eventos', [EventoController::class, 'index'])->name('eventos.index');
     Route::post('eventos', [EventoController::class, 'store'])->name('eventos.store');
@@ -100,7 +100,7 @@ Route::middleware(['auth', 'verified', 'ver_permiso:eventos'])->group(function (
     Route::get('eventos/{evento}/detalles/imprimir', [EventoController::class, 'imprimirDetalles'])->name('eventos.detalles.imprimir');
 });
 
-Route::middleware(['auth', 'verified', 'ver_permiso:transportes'])->group(function () {
+Route::middleware(['auth', 'verified', 'can:modulo:transportes'])->group(function () {
     // Transportes
     Route::get('transportes', [TransporteController::class, 'index'])->name('transportes.index');
     Route::post('transportes/guardar', [TransporteController::class, 'guardar'])->name('transportes.guardar');
@@ -120,13 +120,13 @@ Route::middleware(['auth', 'verified', 'ver_permiso:transportes'])->group(functi
         ->name('transportes.unidades.documentos.eliminar');
 });
 
-Route::middleware(['auth', 'verified', 'ver_permiso:anticipos'])->group(function () {
+Route::middleware(['auth', 'verified', 'can:modulo:anticipos'])->group(function () {
     // Anticipos (solo creación — no edición ni eliminación)
     Route::get('anticipos', [AnticipController::class, 'index'])->name('anticipos.index');
     Route::post('anticipos', [AnticipController::class, 'store'])->name('anticipos.store');
 });
 
-Route::middleware(['auth', 'verified', 'ver_permiso:prestamos'])->group(function () {
+Route::middleware(['auth', 'verified', 'can:modulo:prestamos'])->group(function () {
     // Préstamos (como Anticipos, pero con calendario de cuotas — solo Base/Conductor)
     Route::get('prestamos', [PrestamoController::class, 'index'])->name('prestamos.index');
     Route::post('prestamos', [PrestamoController::class, 'store'])->name('prestamos.store');
@@ -137,27 +137,27 @@ Route::middleware(['auth', 'verified', 'ver_permiso:prestamos'])->group(function
     Route::post('prestamos/cuotas/distribuir', [PrestamoController::class, 'distribuir'])->name('prestamos.cuotas.distribuir');
 });
 
-Route::middleware(['auth', 'verified', 'ver_permiso:servicios-profesionales'])->group(function () {
+Route::middleware(['auth', 'verified', 'can:modulo:servicios-profesionales'])->group(function () {
     // Servicios Profesionales (solo creación)
     Route::get('servicios-profesionales', [ServicioProfesionalController::class, 'index'])->name('servicios-profesionales.index');
     Route::post('servicios-profesionales', [ServicioProfesionalController::class, 'store'])->name('servicios-profesionales.store');
 });
 
-Route::middleware(['auth', 'verified', 'ver_permiso:viaticos'])->group(function () {
+Route::middleware(['auth', 'verified', 'can:modulo:viaticos'])->group(function () {
     // Viáticos (solo creación) — gasto siempre ligado a un evento
     Route::get('viaticos', [ViaticoController::class, 'index'])->name('viaticos.index');
     Route::post('viaticos', [ViaticoController::class, 'store'])->name('viaticos.store');
     Route::post('viaticos/matriz', [ViaticoController::class, 'matriz'])->name('viaticos.matriz');
 });
 
-Route::middleware(['auth', 'verified', 'ver_permiso:historial'])->group(function () {
+Route::middleware(['auth', 'verified', 'can:modulo:historial'])->group(function () {
     // Historial
     Route::get('historial', [HistoricoController::class, 'index'])->name('historial.index');
     Route::get('historial/imprimir-rango', [HistoricoController::class, 'imprimirRango'])->name('historial.imprimir-rango');
     Route::get('historial/{nomina}/imprimir', [HistoricoController::class, 'imprimir'])->name('historial.imprimir');
 });
 
-Route::middleware(['auth', 'verified', 'ver_permiso:registro-asistencia'])->group(function () {
+Route::middleware(['auth', 'verified', 'can:modulo:registro-asistencia'])->group(function () {
     // Registro de Asistencia
     Route::get('registro-asistencia', [RegistroAsistenciaController::class, 'index'])->name('registro-asistencia.index');
     Route::post('registro-asistencia', [RegistroAsistenciaController::class, 'store'])->name('registro-asistencia.store');
@@ -165,7 +165,7 @@ Route::middleware(['auth', 'verified', 'ver_permiso:registro-asistencia'])->grou
     Route::delete('registro-asistencia/{registro}', [RegistroAsistenciaController::class, 'destroy'])->name('registro-asistencia.destroy');
 });
 
-Route::middleware(['auth', 'verified', 'ver_permiso:nomina'])->group(function () {
+Route::middleware(['auth', 'verified', 'can:modulo:nomina'])->group(function () {
     // Jornadas
     Route::post('jornadas/generar', [JornadaController::class, 'generar'])->name('jornadas.generar');
     Route::patch('jornadas/{jornada}/validado', [JornadaController::class, 'actualizarValidado'])->name('jornadas.validado');
@@ -182,7 +182,7 @@ Route::middleware(['auth', 'verified', 'ver_permiso:nomina'])->group(function ()
 });
 
 // Parámetros del sistema y administración de usuarios — solo super admin (rol admin).
-Route::middleware(['auth', 'verified', 'es_admin'])->group(function () {
+Route::middleware(['auth', 'verified', 'can:es-admin'])->group(function () {
     Route::get('parametros', [ParametroController::class, 'index'])->name('parametros.index');
     Route::put('parametros', [ParametroController::class, 'update'])->name('parametros.update');
 
@@ -200,7 +200,7 @@ Route::middleware(['auth', 'verified', 'es_admin'])->group(function () {
 });
 
 // Manual de usuario
-Route::middleware(['auth', 'verified', 'ver_permiso:manual'])->group(function () {
+Route::middleware(['auth', 'verified', 'can:modulo:manual'])->group(function () {
     Route::get('manual', [ManualController::class, 'index'])->name('manual.index');
 });
 
