@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 /*
@@ -17,6 +18,13 @@ use Tests\TestCase;
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in('Feature');
+
+// La caché de la suite usa el driver "array", que persiste durante toda la ejecución.
+// Sin limpiarla, un parámetro cacheado por un test podría "filtrarse" a otro (el modelo
+// ParametroSistema cachea indefinidamente y se invalida solo en set/clear).
+beforeEach(function (): void {
+    Cache::flush();
+});
 
 /*
 |--------------------------------------------------------------------------
