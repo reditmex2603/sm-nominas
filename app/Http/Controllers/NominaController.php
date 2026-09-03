@@ -6,6 +6,7 @@ use App\Enums\EstadoNomina;
 use App\Http\Requests\CalcularNominaRequest;
 use App\Http\Requests\FreelanceDatosRequest;
 use App\Http\Requests\GuardarNominaRequest;
+use App\Models\Auditoria;
 use App\Models\Colaborador;
 use App\Models\Evento;
 use App\Models\HistoricoNomina;
@@ -233,6 +234,15 @@ class NominaController extends Controller
         PrestamoCuota::where('historico_nomina_id', $nomina->id)
             ->update(['estado' => 'PAGADA', 'fecha_pago' => now()->toDateString()]);
 
+        Auditoria::registrar('nomina.pagada', HistoricoNomina::class, $nomina->id, [
+            'colaborador_id' => $nomina->colaborador_id,
+            'tipo' => $nomina->tipo_colaborador->value,
+            'total_final' => (float) $nomina->total_final,
+            'periodo_inicio' => $nomina->periodo_inicio?->format('Y-m-d'),
+            'periodo_fin' => $nomina->periodo_fin?->format('Y-m-d'),
+            'evento_id' => $nomina->evento_id,
+        ]);
+
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Nómina marcada como PAGADO.']);
 
         return back();
@@ -244,6 +254,12 @@ class NominaController extends Controller
         if ($nomina->estado === EstadoNomina::Pagado) {
             return back()->with('error', 'Esta nómina ya fue pagada y no puede eliminarse.');
         }
+
+        Auditoria::registrar('nomina.eliminada', HistoricoNomina::class, $nomina->id, [
+            'colaborador_id' => $nomina->colaborador_id,
+            'tipo' => $nomina->tipo_colaborador->value,
+            'total_final' => (float) $nomina->total_final,
+        ]);
 
         // prestamo_cuotas.historico_nomina_id tiene ON DELETE SET NULL — al borrar la nómina,
         // cualquier cuota ligada queda automáticamente PENDIENTE y sin ligar, disponible para el

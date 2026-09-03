@@ -8,6 +8,7 @@ use App\Enums\TipoColaborador;
 use App\Http\Requests\AplazarCuotasRequest;
 use App\Http\Requests\DistribuirCuotasRequest;
 use App\Http\Requests\StorePrestamoRequest;
+use App\Models\Auditoria;
 use App\Models\Colaborador;
 use App\Models\Prestamo;
 use App\Models\PrestamoCuota;
@@ -61,6 +62,11 @@ class PrestamoController extends Controller
 
         $prestamo->delete();
 
+        Auditoria::registrar('prestamo.eliminado', Prestamo::class, $prestamo->id, [
+            'colaborador_id' => $prestamo->colaborador_id,
+            'monto_total' => (float) $prestamo->monto_total,
+        ]);
+
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Préstamo eliminado.']);
 
         return back();
@@ -78,6 +84,12 @@ class PrestamoController extends Controller
         }
 
         $cuota->update(['estado' => 'PAGADA', 'fecha_pago' => now()->toDateString()]);
+
+        Auditoria::registrar('cuota.pagada', PrestamoCuota::class, $cuota->id, [
+            'prestamo_id' => $cuota->prestamo_id,
+            'numero_plazo' => $cuota->numero_plazo,
+            'monto' => (float) $cuota->monto,
+        ]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Cuota marcada como pagada.']);
 
@@ -100,6 +112,12 @@ class PrestamoController extends Controller
         }
 
         $cuota->update(['estado' => 'PENDIENTE', 'fecha_pago' => null]);
+
+        Auditoria::registrar('cuota.revertida', PrestamoCuota::class, $cuota->id, [
+            'prestamo_id' => $cuota->prestamo_id,
+            'numero_plazo' => $cuota->numero_plazo,
+            'monto' => (float) $cuota->monto,
+        ]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Pago revertido. La cuota vuelve a estar pendiente.']);
 
@@ -140,6 +158,11 @@ class PrestamoController extends Controller
 
         $fecha = Carbon::parse($validated['nueva_fecha'])->format('Y-m-d');
         $cuotas->each(fn ($c) => $c->update(['fecha_programada' => $fecha]));
+
+        Auditoria::registrar('cuotas.aplazadas', PrestamoCuota::class, null, [
+            'cuota_ids' => $ids,
+            'nueva_fecha' => $fecha,
+        ]);
 
         $mensaje = count($ids) === 1
             ? 'Plazo reprogramado al '.Carbon::parse($fecha)->format('d/m/Y').'.'
