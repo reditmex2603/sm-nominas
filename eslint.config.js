@@ -3,6 +3,7 @@ import { defineConfigWithVueTs, vueTsConfigs } from '@vue/eslint-config-typescri
 import prettier from 'eslint-config-prettier/flat';
 import importPlugin from 'eslint-plugin-import';
 import vue from 'eslint-plugin-vue';
+import vuejsAccessibility from 'eslint-plugin-vuejs-accessibility';
 
 const controlStatements = [
     'if',
@@ -61,6 +62,17 @@ export default defineConfigWithVueTs(
         },
     },
     {
+        // Accesibilidad en componentes Vue (atributos aria, etiquetas, roles).
+        plugins: {
+            'vuejs-accessibility': vuejsAccessibility,
+        },
+        rules: {
+            'vuejs-accessibility/alt-text': 'warn',
+            'vuejs-accessibility/label-has-for': 'warn',
+            'vuejs-accessibility/form-control-has-label': 'warn',
+        },
+    },
+    {
         plugins: {
             '@stylistic': stylistic,
         },
@@ -80,6 +92,7 @@ export default defineConfigWithVueTs(
             'bootstrap/ssr',
             'tailwind.config.js',
             'vite.config.ts',
+            'vitest.config.ts',
             'resources/js/actions/**',
             'resources/js/components/ui/*',
             'resources/js/routes/**',
