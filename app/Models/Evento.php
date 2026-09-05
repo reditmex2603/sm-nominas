@@ -6,6 +6,7 @@ use App\Enums\TamanoEvento;
 use Database\Factories\EventoFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
@@ -42,6 +43,7 @@ class Evento extends Model
         'descripcion',
         'observaciones_tecnicas',
         'viatico_diario',
+        'responsable_colaborador_id',
     ];
 
     protected function casts(): array
@@ -62,10 +64,18 @@ class Evento extends Model
         return $this->belongsToMany(Colaborador::class, 'asignaciones');
     }
 
-    /** @return BelongsToMany<TransporteUnidad, $this> */
+    /** @return BelongsToMany<TransporteUnidad, $this, EventoUnidad, 'pivot'> */
     public function unidadesTransporte(): BelongsToMany
     {
-        return $this->belongsToMany(TransporteUnidad::class, 'evento_unidades');
+        return $this->belongsToMany(TransporteUnidad::class, 'evento_unidades')
+            ->using(EventoUnidad::class)
+            ->withPivot('conductor_colaborador_id');
+    }
+
+    /** @return BelongsTo<Colaborador, $this> */
+    public function responsable(): BelongsTo
+    {
+        return $this->belongsTo(Colaborador::class, 'responsable_colaborador_id')->withTrashed();
     }
 
     /** @return HasMany<Asignacion, $this> */

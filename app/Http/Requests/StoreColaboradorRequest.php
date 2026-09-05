@@ -22,6 +22,7 @@ class StoreColaboradorRequest extends FormRequest
             'tipo' => 'required|in:COLABORADOR BASE,FREELANCE,CONDUCTOR,CONDUCTOR BASE',
             'categoria' => 'required_if:tipo,COLABORADOR BASE|nullable|in:Encargado de área,Técnico,Stagehand SM',
             'nivel' => 'required_if:tipo,COLABORADOR BASE|nullable|integer|in:1,2',
+            'area' => 'nullable|string|max:255',
             'compensacion_pct' => 'nullable|integer|min:0|max:100',
             'sueldo_diario' => 'required_if:tipo,CONDUCTOR BASE|nullable|numeric|min:0',
             'extra_dia_adicional' => 'nullable|numeric|min:0',

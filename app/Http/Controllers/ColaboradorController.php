@@ -8,6 +8,8 @@ use App\Http\Requests\UpdateColaboradorNominaRequest;
 use App\Models\Anticipo;
 use App\Models\Colaborador;
 use App\Models\ColaboradorPerfil;
+use App\Models\HistoricoNomina;
+use App\Models\Prestamo;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -24,7 +26,7 @@ class ColaboradorController extends Controller
                 ->get()
                 ->map(function (Colaborador $colaborador) {
                     $data = $colaborador->only([
-                        'id', 'nombre', 'apellidos', 'tipo', 'categoria', 'nivel',
+                        'id', 'nombre', 'apellidos', 'tipo', 'categoria', 'nivel', 'area',
                         'compensacion_pct', 'sueldo_diario', 'extra_dia_adicional', 'token',
                     ]);
 
@@ -89,6 +91,38 @@ class ColaboradorController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Enlace de asistencia regenerado.']);
 
         return back();
+    }
+
+    /**
+     * Panel "Historial" de un colaborador: todos sus movimientos en el sistema de nóminas
+     * (nóminas con desglose, anticipos y préstamos con su calendario de cuotas).
+     */
+    public function historial(Colaborador $colaborador): Response
+    {
+        $colaborador->load('perfil');
+
+        return Inertia::render('colaboradores/Historial', [
+            'colaborador' => $colaborador->only([
+                'id', 'nombre', 'apellidos', 'tipo', 'categoria', 'nivel', 'area',
+                'sueldo_diario', 'extra_dia_adicional', 'compensacion_pct',
+            ]),
+            'perfil' => $colaborador->perfil ? [
+                'telefono' => $colaborador->perfil->telefono,
+                'whatsapp' => $colaborador->perfil->whatsapp,
+            ] : null,
+            'nominas' => HistoricoNomina::where('colaborador_id', $colaborador->id)
+                ->orderByDesc('periodo_inicio')
+                ->orderByDesc('fecha_calculo')
+                ->get(),
+            'anticipos' => Anticipo::where('colaborador_id', $colaborador->id)
+                ->with('evento:id,nombre')
+                ->orderByDesc('fecha')
+                ->get(),
+            'prestamos' => Prestamo::where('colaborador_id', $colaborador->id)
+                ->with('cuotas')
+                ->orderByDesc('fecha_inicio')
+                ->get(),
+        ]);
     }
 
     public function destroy(Colaborador $colaborador): RedirectResponse

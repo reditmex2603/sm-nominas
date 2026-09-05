@@ -32,6 +32,13 @@ class AsistenciaPublicaController extends Controller
             // vehículo elegida (transporte_vehiculo_id).
             'unidades' => TransporteUnidad::orderBy('marca')->get(['id', 'marca', 'modelo', 'numero_placas', 'transporte_vehiculo_id']),
             'token' => $token,
+            // Historial de asistencia del colaborador (pestaña "Historial" del formulario).
+            'registros' => RegistroNormalizado::where('colaborador_id', $colaborador->id)
+                ->with('unidad:id,marca,modelo,numero_placas')
+                ->orderByDesc('fecha')
+                ->orderByDesc('hora')
+                ->limit(50)
+                ->get(['id', 'tipo_actividad', 'actividad', 'evento_raw', 'etapa', 'vehiculo', 'distancia', 'transporte_unidad_id', 'origen', 'destino', 'extras', 'comentarios', 'fecha', 'hora', 'hora_salida']),
         ]);
     }
 

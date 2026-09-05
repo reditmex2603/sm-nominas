@@ -20,6 +20,7 @@ use Illuminate\Support\Str;
  * @property TipoColaborador $tipo
  * @property CategoriaColaborador|null $categoria
  * @property int|null $nivel
+ * @property string|null $area
  * @property int $compensacion_pct
  * @property string|null $sueldo_diario
  * @property string|null $extra_dia_adicional
@@ -38,6 +39,7 @@ class Colaborador extends Model
         'tipo',
         'categoria',
         'nivel',
+        'area',
         'compensacion_pct',
         'sueldo_diario',
         'extra_dia_adicional',
@@ -111,5 +113,11 @@ class Colaborador extends Model
     public function prestamos(): HasMany
     {
         return $this->hasMany(Prestamo::class);
+    }
+
+    /** @return HasMany<ColaboradorDatoBancario, $this> */
+    public function datosBancarios(): HasMany
+    {
+        return $this->hasMany(ColaboradorDatoBancario::class);
     }
 }

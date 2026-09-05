@@ -18,6 +18,7 @@ createInertiaApp({
             case name === 'eventos/ImprimirCotizacion':
             case name === 'eventos/ImprimirResumen':
             case name === 'eventos/ImprimirDetalles':
+            case name === 'eventos/ImprimirTerceros':
             case name === 'colaboradores/ImprimirPerfil':
             case name === 'colaboradores/ImprimirDocumentos':
             case name === 'transportes/ImprimirPerfilUnidad':

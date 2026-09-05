@@ -42,10 +42,19 @@ class UpdateColaboradorPerfilRequest extends FormRequest
             'contacto_emergencia_2_nombre' => 'nullable|string|max:255',
             'contacto_emergencia_2_parentesco' => 'nullable|string|max:255',
             'contacto_emergencia_2_telefono' => ['nullable', new Telefono],
-            // Datos bancarios
+            // Datos bancarios (1 o más registros). Los campos sueltos (banco/beneficiario/
+            // clave_interbancaria) se conservan solo por retrocompatibilidad con impresiones.
             'banco' => 'nullable|string|max:255',
             'beneficiario' => 'nullable|string|max:255',
             'clave_interbancaria' => 'nullable|string|max:50',
+            'datos_bancarios' => 'nullable|array',
+            'datos_bancarios.*.id' => 'nullable|integer',
+            'datos_bancarios.*.banco' => 'nullable|string|max:255',
+            'datos_bancarios.*.beneficiario' => 'nullable|string|max:255',
+            'datos_bancarios.*.clave_interbancaria' => 'nullable|string|max:50',
+            'datos_bancarios.*.numero_tarjeta' => 'nullable|string|max:50',
+            'datos_bancarios.*.alias' => 'nullable|string|max:255',
+            'datos_bancarios.*.comentario' => 'nullable|string|max:2000',
             // Documentos de identificación
             'seguro_social_documento' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'ine_documento' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',

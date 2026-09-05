@@ -3,12 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Enums\TipoColaborador;
+use App\Http\Requests\GuardarConductorUnidadEventoRequest;
 use App\Http\Requests\GuardarRequisitosEventoRequest;
+use App\Http\Requests\GuardarResponsableEventoRequest;
 use App\Http\Requests\StoreEventoRequest;
 use App\Http\Requests\SyncUnidadesEventoRequest;
 use App\Http\Requests\UpdateEventoRequest;
 use App\Models\Colaborador;
 use App\Models\Evento;
+use App\Models\EventoUnidad;
 use App\Models\HistoricoNomina;
 use App\Models\ParametroSistema;
 use App\Models\ServicioProfesional;
@@ -83,11 +86,8 @@ class EventoController extends Controller
         $servicios = $this->serviciosDelEvento($evento);
         $cotizacion = $this->calcularCotizacion($evento, $asignados, $calc);
 
-        $unidadesAsignadas = $evento->unidadesTransporte()
-            ->with('vehiculo:id,nombre')
-            ->orderBy('marca')
-            ->get();
-        $unidadesAsignadasIds = $unidadesAsignadas->pluck('id');
+        $unidadesAsignadas = $this->unidadesConConductor($evento);
+        $unidadesAsignadasIds = collect($unidadesAsignadas)->pluck('id');
         $unidadesDisponibles = TransporteUnidad::with('vehiculo:id,nombre')
             ->whereNotIn('id', $unidadesAsignadasIds)
             ->orderBy('marca')
@@ -105,6 +105,8 @@ class EventoController extends Controller
             'requisitos' => $evento->requisitos_cotizacion ?? $this->requisitosVacios(),
             'cotizacion' => $cotizacion,
             'resumen' => $this->resumenDelEvento($evento, $asignados, $nomina, $viaticos, $servicios, $cotizacion),
+            'responsable' => $this->responsableDelEvento($evento),
+            'info_bancaria' => $this->infoBancariaDelEvento($evento),
         ]);
     }
 
@@ -115,6 +117,40 @@ class EventoController extends Controller
         $evento->unidadesTransporte()->sync($validated['unidad_ids']);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Unidades de transporte actualizadas.']);
+
+        return back();
+    }
+
+    /** Asigna el responsable (colaborador asignado) del evento. */
+    public function guardarResponsable(GuardarResponsableEventoRequest $request, Evento $evento): RedirectResponse
+    {
+        $validated = $request->validated();
+
+        $evento->update([
+            'responsable_colaborador_id' => $validated['responsable_colaborador_id'] ?? null,
+        ]);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Responsable del evento actualizado.']);
+
+        return back();
+    }
+
+    /** Asigna (o limpia) el colaborador que conduce una unidad asignada al evento. */
+    public function guardarConductor(GuardarConductorUnidadEventoRequest $request, Evento $evento, int $unidad): RedirectResponse
+    {
+        $validated = $request->validated();
+
+        $existe = $evento->unidadesTransporte()->where('transporte_unidad_id', $unidad)->exists();
+
+        if (! $existe) {
+            abort(404);
+        }
+
+        $evento->unidadesTransporte()->updateExistingPivot($unidad, [
+            'conductor_colaborador_id' => $validated['conductor_colaborador_id'] ?? null,
+        ]);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Conductor de la unidad actualizado.']);
 
         return back();
     }
@@ -230,6 +266,33 @@ class EventoController extends Controller
             'cotizacion' => $this->calcularCotizacion($evento, $asignados, $calc),
             'requisitos' => $evento->requisitos_cotizacion ?? $this->requisitosVacios(),
             'perfiles' => $perfiles,
+            'unidades' => $unidades,
+        ]);
+    }
+
+    /**
+     * Impresión "a terceros" del evento: un documento con datos generales (lugar, duración,
+     * contacto y responsable), la lista de colaboradores (No./Nombre/Apellidos/Área) y las
+     * unidades de transporte asignadas (No./Categoría/Marca/Placas/Conductor) — sin montos.
+     */
+    public function imprimirTerceros(Evento $evento): Response
+    {
+        $colaboradores = $evento->colaboradores()
+            ->orderBy('apellidos')
+            ->orderBy('nombre')
+            ->get(['colaboradores.id', 'nombre', 'apellidos', 'tipo', 'categoria', 'nivel', 'area']);
+
+        $unidades = $this->unidadesConConductor($evento);
+
+        $dias = ($evento->fecha_inicio && $evento->fecha_fin)
+            ? $evento->fecha_inicio->diffInDays($evento->fecha_fin) + 1
+            : null;
+
+        return Inertia::render('eventos/ImprimirTerceros', [
+            'evento' => $this->conFechasFormateadas($evento),
+            'responsable' => $this->responsableDelEvento($evento),
+            'dias' => $dias,
+            'colaboradores' => $colaboradores,
             'unidades' => $unidades,
         ]);
     }
@@ -367,6 +430,115 @@ class EventoController extends Controller
             'fecha_inicio' => $evento->fecha_inicio?->format('Y-m-d'),
             'fecha_fin' => $evento->fecha_fin?->format('Y-m-d'),
         ];
+    }
+
+    /**
+     * Unidades asignadas al evento con su conductor (colaborador) resuelto. Se carga por
+     * separado porque el pivot (EventoUnidad) no se puede eager-load con with('pivot.conductor').
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function unidadesConConductor(Evento $evento): array
+    {
+        $unidades = $evento->unidadesTransporte()
+            ->with('vehiculo:id,nombre')
+            ->orderBy('marca')
+            ->get();
+
+        $conductores = EventoUnidad::where('evento_id', $evento->id)
+            ->whereNotNull('conductor_colaborador_id')
+            ->with('conductor:id,nombre,apellidos,tipo')
+            ->get()
+            ->keyBy('transporte_unidad_id');
+
+        return $unidades->map(function ($u) use ($conductores): array {
+            return [
+                'id' => $u->id,
+                'marca' => $u->marca,
+                'modelo' => $u->modelo,
+                'numero_placas' => $u->numero_placas,
+                'pertenencia' => $u->pertenencia,
+                'alias' => $u->alias,
+                'transporte_vehiculo_id' => $u->transporte_vehiculo_id,
+                'vehiculo' => $u->vehiculo
+                    ? ['id' => $u->vehiculo->id, 'nombre' => $u->vehiculo->nombre]
+                    : null,
+                'conductor' => ($conductor = $conductores->get($u->id)?->conductor)
+                    ? [
+                        'id' => $conductor->id,
+                        'nombre' => $conductor->nombre,
+                        'apellidos' => $conductor->apellidos,
+                        'tipo' => $conductor->tipo,
+                    ]
+                    : null,
+            ];
+        })->all();
+    }
+
+    /** Responsable del evento (colaborador asignado) para la pestaña Asignación y cotización. */
+    /** @return array<string, mixed>|null */
+    private function responsableDelEvento(Evento $evento): ?array
+    {
+        if (! $evento->responsable_colaborador_id) {
+            return null;
+        }
+
+        $responsable = Colaborador::withTrashed()->find($evento->responsable_colaborador_id);
+
+        if (! $responsable) {
+            return null;
+        }
+
+        return [
+            'id' => $responsable->id,
+            'nombre' => $responsable->nombre,
+            'apellidos' => $responsable->apellidos,
+            'tipo' => $responsable->tipo,
+            'telefono' => $responsable->perfil?->telefono,
+        ];
+    }
+
+    /**
+     * Datos bancarios (1 o más registros) de cada colaborador asignado al evento, para el panel
+     * "Info bancaria" de la vista del evento. Los campos sensibles (CLABE, tarjeta) ya viajan
+     * descifrados por los casts del modelo.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function infoBancariaDelEvento(Evento $evento): array
+    {
+        $asignados = $evento->colaboradores()
+            ->with(['perfil:id,colaborador_id,telefono', 'datosBancarios'])
+            ->get(['colaboradores.id', 'nombre', 'apellidos', 'tipo']);
+
+        $resultado = [];
+
+        foreach ($asignados as $c) {
+            $bancarios = [];
+
+            foreach ($c->datosBancarios as $b) {
+                $bancarios[] = [
+                    'id' => $b->id,
+                    'banco' => $b->banco,
+                    'beneficiario' => $b->beneficiario,
+                    'clave_interbancaria' => $b->clave_interbancaria,
+                    'numero_tarjeta' => $b->numero_tarjeta,
+                    'alias' => $b->alias,
+                    'comentario' => $b->comentario,
+                ];
+            }
+
+            $resultado[] = [
+                'id' => $c->id,
+                'nombre' => $c->nombre,
+                'apellidos' => $c->apellidos,
+                'tipo' => $c->tipo,
+                'telefono' => $c->perfil?->telefono,
+                'datos_bancarios' => $bancarios,
+            ];
+        }
+
+        return $resultado;
     }
 
     /**

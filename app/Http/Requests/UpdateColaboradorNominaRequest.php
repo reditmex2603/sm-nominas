@@ -27,6 +27,9 @@ class UpdateColaboradorNominaRequest extends FormRequest
 
         $rules = [];
 
+        // El área es un dato general, editable para cualquier tipo.
+        $rules['area'] = 'nullable|string|max:255';
+
         if ($colaborador->tipo === TipoColaborador::Base) {
             $rules['sueldo_diario'] = 'nullable|numeric|min:0';
             $rules['categoria'] = 'required|in:Encargado de área,Técnico,Stagehand SM';

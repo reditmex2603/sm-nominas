@@ -91,6 +91,8 @@ Route::middleware(['auth', 'verified', 'can:modulo:eventos'])->group(function ()
     Route::get('eventos/{evento}/asignacion', [EventoController::class, 'asignacion'])->name('eventos.asignacion');
     Route::post('eventos/{evento}/asignaciones/sync', [AsignacionController::class, 'sync'])->name('eventos.asignaciones.sync');
     Route::post('eventos/{evento}/unidades/sync', [EventoController::class, 'syncUnidades'])->name('eventos.unidades.sync');
+    Route::put('eventos/{evento}/responsable', [EventoController::class, 'guardarResponsable'])->name('eventos.responsable.update');
+    Route::put('eventos/{evento}/unidades/{unidad}/conductor', [EventoController::class, 'guardarConductor'])->name('eventos.unidades.conductor.update');
     Route::put('eventos/{evento}/requisitos', [EventoController::class, 'guardarRequisitos'])->name('eventos.requisitos.update');
 
     // Nómina del evento (imprimir)
@@ -98,6 +100,7 @@ Route::middleware(['auth', 'verified', 'can:modulo:eventos'])->group(function ()
     Route::get('eventos/{evento}/cotizacion/imprimir', [EventoController::class, 'imprimirCotizacion'])->name('eventos.cotizacion.imprimir');
     Route::get('eventos/{evento}/resumen/imprimir', [EventoController::class, 'imprimirResumen'])->name('eventos.resumen.imprimir');
     Route::get('eventos/{evento}/detalles/imprimir', [EventoController::class, 'imprimirDetalles'])->name('eventos.detalles.imprimir');
+    Route::get('eventos/{evento}/terceros/imprimir', [EventoController::class, 'imprimirTerceros'])->name('eventos.terceros.imprimir');
 });
 
 Route::middleware(['auth', 'verified', 'can:modulo:transportes'])->group(function () {
@@ -155,6 +158,9 @@ Route::middleware(['auth', 'verified', 'can:modulo:historial'])->group(function 
     Route::get('historial', [HistoricoController::class, 'index'])->name('historial.index');
     Route::get('historial/imprimir-rango', [HistoricoController::class, 'imprimirRango'])->name('historial.imprimir-rango');
     Route::get('historial/{nomina}/imprimir', [HistoricoController::class, 'imprimir'])->name('historial.imprimir');
+
+    // Historial de movimientos de un colaborador (nóminas, anticipos y préstamos)
+    Route::get('colaboradores/{colaborador}/historial', [ColaboradorController::class, 'historial'])->name('colaboradores.historial');
 });
 
 Route::middleware(['auth', 'verified', 'can:modulo:registro-asistencia'])->group(function () {

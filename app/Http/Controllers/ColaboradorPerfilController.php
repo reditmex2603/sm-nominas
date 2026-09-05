@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdateColaboradorPerfilRequest;
 use App\Models\Colaborador;
+use App\Models\ColaboradorDatoBancario;
 use App\Models\ColaboradorPerfil;
 use App\Support\Documentos;
 use Illuminate\Http\JsonResponse;
@@ -33,7 +34,7 @@ class ColaboradorPerfilController extends Controller
                 'compensacion_pct' => $colaborador->compensacion_pct,
                 'extra_dia_adicional' => $colaborador->extra_dia_adicional,
             ],
-            'perfil' => $perfil ? array_merge($perfil->toArray(), $this->documentoUrls($perfil)) : null,
+            'perfil' => $perfil ? $this->conDatosBancarios($perfil) : null,
         ]);
     }
 
@@ -43,7 +44,7 @@ class ColaboradorPerfilController extends Controller
 
         return Inertia::render('colaboradores/Perfil', [
             'colaborador' => $colaborador,
-            'perfil' => $perfil ? array_merge($perfil->toArray(), $this->documentoUrls($perfil)) : null,
+            'perfil' => $perfil ? $this->conDatosBancarios($perfil) : null,
         ]);
     }
 
@@ -53,7 +54,7 @@ class ColaboradorPerfilController extends Controller
 
         return Inertia::render('colaboradores/ImprimirPerfil', [
             'colaborador' => $colaborador,
-            'perfil' => $perfil ? array_merge($perfil->toArray(), $this->documentoUrls($perfil)) : null,
+            'perfil' => $perfil ? $this->conDatosBancarios($perfil) : null,
         ]);
     }
 
@@ -63,7 +64,7 @@ class ColaboradorPerfilController extends Controller
 
         return Inertia::render('colaboradores/ImprimirDocumentos', [
             'colaborador' => $colaborador,
-            'perfil' => $perfil ? array_merge($perfil->toArray(), $this->documentoUrls($perfil)) : null,
+            'perfil' => $perfil ? $this->conDatosBancarios($perfil) : null,
         ]);
     }
 
@@ -126,6 +127,8 @@ class ColaboradorPerfilController extends Controller
 
         $perfil->save();
 
+        $this->sincronizarDatosBancarios($colaborador, $validated['datos_bancarios'] ?? []);
+
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Perfil guardado correctamente.']);
 
         return back();
@@ -163,5 +166,75 @@ class ColaboradorPerfilController extends Controller
         $urls['fotografia_url'] = Documentos::url($perfil->fotografia_path);
 
         return $urls;
+    }
+
+    /**
+     * Perfil serializable para Inertia: datos del perfil + URLs de documentos + la lista
+     * completa de registros bancarios (1 o más).
+     *
+     * @return array<string, mixed>
+     */
+    private function conDatosBancarios(ColaboradorPerfil $perfil): array
+    {
+        return [
+            ...array_merge($perfil->toArray(), $this->documentoUrls($perfil)),
+            'datos_bancarios' => $perfil->colaborador->datosBancarios()->orderBy('id')->get(),
+        ];
+    }
+
+    /**
+     * Reemplaza la lista de registros bancarios del colaborador por la recibida (la UI manda
+     * siempre la lista completa). Crea/actualiza según traigan id; los registros que ya no
+     * estén en la lista se eliminan. El primer registro se espeja en las columnas bancarias
+     * de colaborador_perfiles para no romper impresiones históricas (nómina/historial).
+     *
+     * @param  array<int, array<string, mixed>>  $datos
+     */
+    private function sincronizarDatosBancarios(Colaborador $colaborador, array $datos): void
+    {
+        $datos = array_values($datos);
+
+        if ($datos === []) {
+            // Sin lista bancaria (cliente que solo envía los campos sueltos de perfil):
+            // se respeta lo guardado en las columnas de colaborador_perfiles.
+            return;
+        }
+
+        $idsEnviados = collect($datos)
+            ->pluck('id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        ColaboradorDatoBancario::where('colaborador_id', $colaborador->id)
+            ->whereNotIn('id', $idsEnviados)
+            ->delete();
+
+        foreach ($datos as $dato) {
+            $campos = array_intersect_key($dato, array_flip([
+                'banco', 'beneficiario', 'clave_interbancaria', 'numero_tarjeta', 'alias', 'comentario',
+            ]));
+
+            if (! empty($dato['id'])) {
+                ColaboradorDatoBancario::where('colaborador_id', $colaborador->id)
+                    ->where('id', (int) $dato['id'])
+                    ->update($campos);
+            } else {
+                $colaborador->datosBancarios()->create($campos);
+            }
+        }
+
+        // Se re-consulta el perfil en vez de usar $colaborador->perfil: la relación ya pudo
+        // haber quedado cacheada como null por el controlador al crear el perfil.
+        $perfil = ColaboradorPerfil::where('colaborador_id', $colaborador->id)->first();
+
+        if ($perfil) {
+            $principal = $datos[0];
+            $perfil->update([
+                'banco' => $principal['banco'] ?? null,
+                'beneficiario' => $principal['beneficiario'] ?? null,
+                'clave_interbancaria' => $principal['clave_interbancaria'] ?? null,
+            ]);
+        }
     }
 }
