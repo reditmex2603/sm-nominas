@@ -20,6 +20,7 @@
         "spatie/laravel-backup": "^10.3"
     },
     "require-dev": {
+        "driftingly/rector-laravel": "^2.5",
         "fakerphp/faker": "^1.24",
         "larastan/larastan": "^3.9",
         "laravel-lang/common": "^6.8",
@@ -62,6 +63,14 @@
         ],
         "lint:check": [
             "pint --parallel --test"
+        ],
+        "rector:dry-run": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php vendor/bin/rector process --dry-run --no-progress-bar"
+        ],
+        "rector:apply": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php vendor/bin/rector process --no-progress-bar"
         ],
         "ci:check": [
             "Composer\\Config::disableProcessTimeout",
