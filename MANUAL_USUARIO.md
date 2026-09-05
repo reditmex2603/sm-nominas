@@ -17,6 +17,7 @@
    - 2.2 Eventos
    - 2.3 Transportes (tarifas y flotilla)
    - 2.4 Parámetros del sistema
+   - 2.5 Usuarios y permisos de acceso
 3. [Registro de asistencia](#3-registro-de-asistencia)
    - 3.1 Formulario público del colaborador
    - 3.2 Registro de asistencia del administrador
@@ -84,8 +85,9 @@ Al entrar al sistema verá:
 - **Área de contenido**: la pantalla del módulo activo.
 - **Esquina inferior izquierda**: su menú de usuario (perfil, seguridad, apariencia y cerrar sesión).
 
-Módulos disponibles en el menú (en orden):
+El menú lateral se organiza en tres grupos:
 
+**Módulos** (en orden):
 1. **Dashboard** — resumen general del negocio.
 2. **Panel Validación** — revisión de jornadas y cálculo de nómina (módulo central).
 3. **Colaboradores** — alta, baja y edición del personal.
@@ -98,6 +100,15 @@ Módulos disponibles en el menú (en orden):
 10. **Historial** — registro permanente de nóminas.
 11. **Registro Asistencia** — captura y consulta de asistencias.
 12. **Parámetros** — configuración global del sistema.
+
+**Configuración** (solo super admin):
+13. **Usuarios** — alta, baja y permisos de acceso de los usuarios.
+14. **Marca** — personalización visual (colores, logo e isotipo).
+
+**Documentación**:
+15. **Manual de usuario** — este documento, consultable dentro del sistema.
+
+> Los grupos **Configuración** y **Documentación** solo aparecen si su cuenta tiene el rol de **super admin** o el permiso correspondiente. El resto de usuarios solo ve los módulos a los que tiene permiso.
 
 ## 1.5 Convenciones usadas en este manual
 
@@ -143,13 +154,24 @@ Para guardar los cambios de una fila pulse el botón **Guardar** (ícono de láp
 
 ### Perfil de colaborador
 
-Junto a cada fila, el botón **Perfil** abre la ficha del colaborador, con:
+Junto a cada fila, el botón **Perfil** abre la **página de perfil** del colaborador. El botón muestra un **punto de estado**: ámbar cuando el perfil está pendiente de completar y verde cuando está completo.
+
+La página de perfil se divide en las siguientes secciones:
 
 - **Información general** (solo lectura): tipo, categoría, nivel, sueldo diario, compensación o extra día.
-- **Datos de emergencia** (editables): tipo de sangre, número de seguro social, alergias y padecimientos crónicos.
-- **Documentos de identificación** (editables, archivos imagen o PDF): **Seguro social**, **INE**, **CURP**, **Comprobante de domicilio** y **Licencia de conducir**.
+- **Datos personales** (editables):
+  - **Fotografía**: JPG o PNG de hasta 5 MB, con vista previa.
+  - **Alias** (p. ej. "Charly"), **Fecha de ingreso** (obligatoria), **Fecha de nacimiento** y **Género**.
+  - **Correo**, **Número de teléfono** y **WhatsApp** (obligatorios, 10 a 13 dígitos), **Redes sociales** (enlace), **Ubicación en Maps** (enlace) y **Domicilio**.
+- **Datos de emergencia** (editables): **Tipo de sangre**, **Número de seguro social** (solo números), **Alergias**, **Padecimientos crónicos** y el **Documento de seguro social** (archivo).
+- **Contactos de emergencia** (editables): dos contactos, cada uno con **Nombre**, **Parentesco** y **Número de teléfono**.
+- **Documentos de identificación** (editables, archivos imagen o PDF de hasta 5 MB): **INE**, **CURP**, **Comprobante de domicilio** y **Licencia de conducir**. Los documentos ya cargados se pueden **Ver** (abren en otra pestaña) o **eliminar**.
+- **Datos bancarios** (editables): **Banco**, **Beneficiario** y **Clave interbancaria (CLABE)** de 18 dígitos. Estos datos identifican la cuenta de pago del colaborador y aparecen en las nóminas del Historial (ver [§6 Historial de Nóminas](#6-historial-de-nóminas)).
 
-Los documentos ya cargados se pueden **Ver** (abren en otra pestaña) o **eliminar**. Todos los cambios se guardan con el botón **"Guardar perfil"**.
+Todos los cambios se guardan con el botón **"Guardar perfil"**. Además, la página ofrece dos botones de impresión:
+
+- **Imprimir**: genera el perfil imprimible del colaborador (ficha tipo CV).
+- **Imprimir documentos**: genera una hoja con los documentos de identificación adjuntos.
 
 ### Enlace de asistencia personal
 
@@ -345,16 +367,53 @@ Cada unidad tiene un **perfil imprimible** (mini CV de la unidad), al estilo del
 
 ## 2.4 Parámetros del sistema
 
-El módulo **Parámetros** (`Menú → Parámetros`) concentra la configuración global de cálculo. Está dividido en cuatro bloques:
+El módulo **Parámetros** (`Menú → Parámetros`) concentra la configuración global de cálculo. Está dividido en tres bloques:
 
 1. **Pago por defecto al crear evento**: montos que el sistema asigna automáticamente a los eventos *Chico*, *Mediano* y *Grande*.
 2. **Extra por día de evento (Base)**: tabla de montos por **categoría** (*Encargado de área*, *Técnico*, *Stagehand SM*), **nivel** (*1* o *2*) y **tamaño de evento** (*Mediano* / *Grande*). Es el valor que se suma por cada día calificado de evento (montaje, show o desmontaje). Los eventos *Chico* nunca generan este extra.
 3. **Bono de 7° día (base)**: número de días lunes–sábado requeridos para generar el bono del séptimo día (valor habitual: 6).
-4. **Marca** (solo administradores): personaliza la identidad visual del sistema. Permite subir el **logo** (visible en toda la interfaz y en las impresiones) y elegir los **colores** de la marca, que se aplican automáticamente a los botones y elementos destacados. Los cambios se ven reflejados de inmediato.
 
 Para aplicar cambios, modifique los valores y pulse **"Guardar parámetros"**.
 
 > Estos valores afectan directamente los cálculos de nómina. Es recomendable revisarlos al menos una vez por período de pago.
+
+### Marca
+
+La página **Marca** (`Menú → Marca`, grupo *Configuración*, solo super admin) personaliza la identidad visual del sistema. Está dividida en dos bloques:
+
+1. **Colores**: el **color primario** (botones y elementos destacados) y el **color del panel lateral**. Se eligen con un selector de color o escribiendo el código hexadecimal, con una vista previa en vivo. Pulse **"Guardar colores"**.
+2. **Logo (tipo) e Isotipo (ícono)**: archivos JPG, PNG o WebP de hasta 2 MB que identifican la marca. El **logo** aparece en el encabezado de la interfaz y en los documentos impresos; el **isotipo** se usa como ícono de la aplicación y del navegador (favicon). Cada uno se puede **reemplazar**, **subir** o **eliminar** con su propio botón.
+
+Los cambios se reflejan de inmediato en toda la aplicación y en las impresiones.
+
+## 2.5 Usuarios y permisos de acceso
+
+El módulo **Usuarios** (`Menú → Usuarios`, grupo *Configuración*) está disponible **solo para el super admin** y administra quién puede entrar al sistema y a qué módulos.
+
+La pantalla lista los usuarios con su **nombre**, **correo**, **rol** y los **permisos** de módulo otorgados.
+
+### Roles
+
+| Rol | Alcance |
+|-----|---------|
+| **Super admin** | Acceso total a todos los módulos y a la administración (Parámetros, Usuarios, Marca). No puede editarse ni eliminarse. |
+| **Supervisor** | Acceso a los módulos que el admin le asigne. |
+| **Capturista** | Acceso a los módulos que el admin le asigne (uso habitual: captura de asistencia). |
+
+### Crear un usuario
+
+1. Pulse **"+ Nuevo usuario"**.
+2. Complete **Nombre**, **Correo** y una **Contraseña** de al menos 8 caracteres.
+3. Elija el **Rol** (*Supervisor* o *Capturista*).
+4. Marque los **permisos de acceso por módulo** que desee otorgar (por ejemplo, *Colaboradores*, *Registro Asistencia*, *Panel Validación*).
+5. Pulse **Guardar**.
+
+### Editar y eliminar usuarios
+
+- **Editar**: lápiz de la fila; puede cambiar nombre, correo, rol, contraseña (dejarla vacía la conserva) y permisos.
+- **Eliminar**: papelera de la fila, con confirmación. Se revoca el acceso al sistema de inmediato.
+
+> Un usuario solo ve en el menú los módulos para los que tiene permiso. El **super admin** los ve todos.
 
 ---
 
@@ -704,6 +763,20 @@ El módulo **Viáticos** (`Menú → Viáticos`) registra gastos **siempre ligad
 
 La tabla lista fecha, nombre (colaborador o con etiqueta *"(General)"*), tipo, evento, concepto, monto y autoriza.
 
+### Matriz de viáticos por evento
+
+Además del registro manual, el módulo incluye un **panel de matriz** para capturar en una sola pantalla los **viáticos diarios** de todos los colaboradores de un evento (por ejemplo, un gasto diario de alimentos por persona):
+
+1. En **"Matriz por evento"** elija un evento.
+2. En **"Gasto por día"** defina el monto diario que se aplicará a todo el evento (se guarda como configuración del evento y sirve de valor por defecto).
+3. El sistema arma una **matriz de colaborador × día**: las columnas son los días del evento (según sus fechas de inicio y fin) y las filas los colaboradores asignados.
+4. Marque con un **check** los días en que cada colaborador recibió viático. Si algún día el monto fue **diferente al global**, escriba el importe en el campo de esa celda (vacío = monto del evento).
+5. Pulse **"Guardar matriz"**. El sistema crea (o actualiza) un viático por cada celda marcada, con concepto *VIÁTICO DIARIO* y tipo *Otro*.
+
+Los viáticos adicionales que no forman parte del diario (extras) se registran con **"+ Nuevo viático"** como siempre.
+
+> Si el evento no tiene colaboradores asignados, la matriz queda vacía: asigne personal primero en *Menú → Eventos*.
+
 > Los viáticos se consultan también desde la pantalla de asignación de cada evento (pestaña **Viáticos**).
 
 ---
@@ -741,7 +814,7 @@ Lista de **eventos colapsables**: al hacer clic en un evento se expande la lista
 
 ### Acciones sobre una nómina
 
-Al hacer clic en una fila se expande el **desglose detallado** de esa nómina (jornadas, registros o rutas según el tipo). Las acciones disponibles son:
+Al hacer clic en una fila se expande el **desglose detallado** de esa nómina (jornadas, registros o rutas según el tipo). Si el colaborador tiene **datos bancarios** capturados en su perfil (banco, beneficiario y CLABE), también se muestran aquí, para facilitar la identificación de la cuenta de pago. Las acciones disponibles son:
 
 - **Imprimir** (ícono de impresora): abre la impresión de esa nómina en una nueva pestaña.
 - **Marcar pagado** (solo nóminas PENDIENTE): con confirmación *"¿Marcar esta nómina como PAGADA? Esta acción es irreversible."*
@@ -756,7 +829,7 @@ En cualquier pestaña, el botón **"Imprimir nóminas del período"** (ícono de
 
 ### Imprimir una nómina individual
 
-Desde la fila de una nómina, el botón **Imprimir** abre la vista de impresión de esa nómina en particular (con su desglose y totales).
+Desde la fila de una nómina, el botón **Imprimir** abre la vista de impresión de esa nómina en particular (con su desglose y totales). La impresión incluye los **datos bancarios** del colaborador (banco, beneficiario y CLABE) junto a los datos de la nómina, listos para el pago.
 
 > Ambas vistas de impresión están pensadas para guardarse en PDF o imprimirse directamente desde el navegador.
 
@@ -769,8 +842,8 @@ El **Dashboard** (`Menú → Dashboard`) ofrece un resumen general del negocio c
 ### Tarjetas de resumen
 
 - **Colaboradores**: total y desglose por tipo (Base, Freelance, Conductor, Conductor base).
-- **Eventos**: total y desglose por tamaño (Chico, Mediano, Grande).
-- **Nómina Pendiente** y **Nómina Pagada del Mes**: montos por pagar y pagados (con total histórico).
+- **Eventos**: total y **eventos vigentes**.
+- **Nómina Total del Año**, **Nómina Pendiente del Año** y **Nómina Pagada del Año** (con el monto pagado del mes).
 - **Anticipos del Mes**, **Préstamos** (activos y monto por cobrar), **Viáticos del Mes** y **Servicios Prof. del Mes**.
 
 ### Alertas
@@ -783,12 +856,12 @@ Si hay situaciones que requieren atención, el panel muestra una sección de **A
 
 ### Gráficas y resúmenes
 
-- **Colaboradores por tipo** (barras) y **Eventos por tamaño** (barras).
-- **Validación de jornadas**: anillo de progreso con el porcentaje validado y el conteo de validadas/pendientes.
-- **Distribución de gastos del mes**: gráfica de pastel que divide el gasto total entre Nómina, Anticipos, Viáticos y Servicios Profesionales.
+- **Colaboradores por tipo** (barras) y **Eventos vigentes por tamaño** (barras), además de **Eventos totales por año**.
+- **Validación de jornadas por año**: anillo de progreso con el porcentaje validado y el conteo de validadas/pendientes, más el desglose por año.
+- **Distribución de gastos del año**: gráfica de pastel que divide el gasto del año entre Nómina, Anticipos, Viáticos y Servicios Profesionales.
 - **Resumen de transporte**: unidades totales (propias y rentadas), categorías de vehículo, tarifas registradas y tarifa promedio, con acceso directo al módulo **Gestionar transportes**.
 - **Vencimientos próximos (30 días)**: cuotas de préstamo por vencer y seguros de unidades por vencer, con acceso a **Gestionar préstamos**.
-- **Nómina pagada por período**: barras del monto pagado por período.
+- **Nómina pagada por año**: barras del monto pagado por año.
 - **Últimas nóminas**: tabla con las nóminas más recientes (colaborador, período, total y estado), con enlace *Ver todas*.
 - **Próximos eventos**: tabla con evento, inicio, tamaño y pago, con enlace *Ver todos*.
 

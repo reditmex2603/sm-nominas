@@ -2,9 +2,15 @@
 import { Head } from '@inertiajs/vue3';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
-import { computed } from 'vue';
+import { computed, nextTick, onMounted, ref } from 'vue';
 
 const props = defineProps<{ contenido: string }>();
+
+interface TocItem {
+    nivel: number;
+    texto: string;
+    id: string;
+}
 
 function slugify(texto: string): string {
     return texto
@@ -16,30 +22,39 @@ function slugify(texto: string): string {
         .replace(/^-+|-+$/g, '');
 }
 
-// Agrega IDs estilo GitHub a los encabezados para que los enlaces del índice
-// funcionen dentro de la página.
-function agregarIdsEncabezados(html: string): string {
+// Renderiza el markdown, asigna IDs estilo GitHub a los encabezados y arma el
+// índice (TOC) con los mismos IDs para que los enlaces del menú coincidan.
+const procesado = computed<{ html: string; toc: TocItem[] }>(() => {
+    const html = DOMPurify.sanitize(marked.parse(props.contenido) as string);
     const usados: Record<string, number> = {};
+    const toc: TocItem[] = [];
 
-    return html.replace(/<(h[1-6])([^>]*)>([\s\S]*?)<\/\1>/g, (match, tag, attrs, inner) => {
-        const textoPlano = inner.replace(/<[^>]+>/g, '').trim();
-        let id = slugify(textoPlano);
+    const conIds = html.replace(
+        /<(h[1-6])([^>]*)>([\s\S]*?)<\/\1>/g,
+        (match, tag, attrs, inner) => {
+            const textoPlano = inner.replace(/<[^>]+>/g, '').trim();
+            let id = slugify(textoPlano);
 
-        if (usados[id] !== undefined) {
-            usados[id] += 1;
-            id = `${id}-${usados[id]}`;
-        } else {
-            usados[id] = 0;
-        }
+            if (usados[id] !== undefined) {
+                usados[id] += 1;
+                id = `${id}-${usados[id]}`;
+            } else {
+                usados[id] = 0;
+            }
 
-        return `<${tag} id="${id}">${inner}</${tag}>`;
-    });
-}
+            toc.push({ nivel: Number(tag[1]), texto: textoPlano, id });
 
-const html = computed(() => agregarIdsEncabezados(DOMPurify.sanitize(marked.parse(props.contenido) as string)));
+            return `<${tag} id="${id}">${inner}</${tag}>`;
+        },
+    );
+
+    return { html: conIds, toc };
+});
 
 function alClicEnlace(event: MouseEvent) {
-    const ancla = (event.target as HTMLElement).closest('a[href^="#"]') as HTMLAnchorElement | null;
+    const ancla = (event.target as HTMLElement).closest(
+        'a[href^="#"]',
+    ) as HTMLAnchorElement | null;
 
     if (!ancla) {
         return;
@@ -58,27 +73,127 @@ function alClicEnlace(event: MouseEvent) {
         destino.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 }
+
+// Resalta la sección activa del índice mientras se desplaza por el documento.
+const contenidoRef = ref<HTMLElement | null>(null);
+const activeId = ref('');
+let observer: IntersectionObserver | null = null;
+
+function observarSecciones() {
+    if (observer) {
+        observer.disconnect();
+    }
+
+    observer = new IntersectionObserver(
+        (entries) => {
+            for (const entry of entries) {
+                if (entry.isIntersecting) {
+                    activeId.value = (entry.target as HTMLElement).id;
+                }
+            }
+        },
+        { rootMargin: '-80px 0px -70% 0px' },
+    );
+
+    const encabezados =
+        contenidoRef.value?.querySelectorAll('h1, h2, h3, h4, h5, h6') ?? [];
+
+    for (const encabezado of encabezados) {
+        observer.observe(encabezado);
+    }
+}
+
+onMounted(async () => {
+    await nextTick();
+    observarSecciones();
+});
 </script>
 
 <template>
     <Head title="Manual de usuario" />
 
-    <div class="mx-auto flex h-full w-full max-w-4xl flex-col gap-4 p-4 sm:p-6">
+    <div class="mx-auto flex h-full w-full max-w-6xl flex-col gap-4 p-4 sm:p-6">
         <div>
             <h1 class="text-2xl font-semibold">Manual de usuario</h1>
-            <p class="text-muted-foreground mt-1 text-sm">
+            <p class="mt-1 text-sm text-muted-foreground">
                 Guía completa del sistema de nómina SM Producciones
             </p>
         </div>
 
-        <div
-            v-if="html"
-            class="manual-content rounded-xl border bg-card px-5 py-6 sm:px-8 sm:py-8"
-            @click="alClicEnlace"
-            v-html="html"
-        />
-        <div v-else class="text-muted-foreground rounded-xl border p-10 text-center text-sm">
-            No hay manual disponible.
+        <div class="flex items-start gap-6">
+            <!-- Índice lateral (escritorio) -->
+            <aside
+                class="sticky top-6 hidden max-h-[calc(100vh-6rem)] w-72 shrink-0 self-start overflow-y-auto rounded-xl border bg-card lg:block"
+            >
+                <p
+                    class="border-b px-4 py-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                >
+                    Contenido
+                </p>
+                <nav class="space-y-0.5 p-3">
+                    <a
+                        v-for="item in procesado.toc"
+                        :key="item.id"
+                        :href="`#${item.id}`"
+                        :class="[
+                            'block rounded-md px-3 py-1.5 text-sm leading-snug transition-colors',
+                            item.nivel === 1 ? 'mt-2 font-semibold' : '',
+                            item.nivel === 2 ? 'pl-6' : '',
+                            item.nivel >= 3 ? 'pl-10' : '',
+                            activeId === item.id
+                                ? 'bg-primary/10 font-medium text-primary'
+                                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                        ]"
+                        @click="alClicEnlace"
+                    >
+                        {{ item.texto }}
+                    </a>
+                </nav>
+            </aside>
+
+            <div class="min-w-0 flex-1">
+                <!-- Índice colapsable (móvil) -->
+                <details class="mb-4 rounded-xl border bg-card lg:hidden">
+                    <summary
+                        class="cursor-pointer px-4 py-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase select-none"
+                    >
+                        Contenido
+                    </summary>
+                    <nav class="space-y-0.5 border-t p-3">
+                        <a
+                            v-for="item in procesado.toc"
+                            :key="item.id"
+                            :href="`#${item.id}`"
+                            :class="[
+                                'block rounded-md px-3 py-1.5 text-sm leading-snug transition-colors',
+                                item.nivel === 1 ? 'mt-2 font-semibold' : '',
+                                item.nivel === 2 ? 'pl-6' : '',
+                                item.nivel >= 3 ? 'pl-10' : '',
+                                activeId === item.id
+                                    ? 'bg-primary/10 font-medium text-primary'
+                                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                            ]"
+                            @click="alClicEnlace"
+                        >
+                            {{ item.texto }}
+                        </a>
+                    </nav>
+                </details>
+
+                <div
+                    v-if="procesado.html"
+                    ref="contenidoRef"
+                    class="manual-content rounded-xl border bg-card px-5 py-6 sm:px-8 sm:py-8"
+                    @click="alClicEnlace"
+                    v-html="procesado.html"
+                />
+                <div
+                    v-else
+                    class="rounded-xl border p-10 text-center text-sm text-muted-foreground"
+                >
+                    No hay manual disponible.
+                </div>
+            </div>
         </div>
     </div>
 </template>
