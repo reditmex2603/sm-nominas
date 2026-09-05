@@ -45,13 +45,13 @@ class ValidacionController extends Controller
 
                 return ($nominasFreelance->get($j->colaborador_id) ?? collect())
                     ->first(fn ($n) => $n->evento_id === $eventoId)
-                    ?->estado;
+                    ?->estado?->value;
             }
 
             return ($nominasPeriodo->get($j->colaborador_id) ?? collect())
                 ->first(fn ($n) => $n->periodo_inicio->format('Y-m-d') <= $j->fecha->format('Y-m-d')
                     && $n->periodo_fin->format('Y-m-d') >= $j->fecha->format('Y-m-d')
-                )?->estado;
+                )?->estado?->value;
         };
 
         $jornadas = JornadaConsolidada::with('colaborador:id,nombre,apellidos,tipo,sueldo_diario,compensacion_pct')
